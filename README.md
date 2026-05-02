@@ -57,3 +57,9 @@ iOS release secrets carried over from the original repo:
 This repo was extracted from `~/Projects/muxy` (mac app + iOS app + shared)
 and `~/Projects/muxy-android`. See `docs/migration-task.md` for the cleanup
 checklist on the source mac repo.
+
+## License
+
+This project is source-available under the Functional Source License 1.1 with
+an Apache 2.0 future grant (`FSL-1.1-ALv2`). See `LICENSE` for the full terms
+and `LICENSE-NOTES.md` for a plain-language summary.
