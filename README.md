@@ -1,25 +1,34 @@
 # Muxy Mobile
 
-Monorepo for the Muxy mobile clients.
+Native iOS and Android clients for the [Muxy](https://github.com/muxy-app/muxy) macOS terminal.
 
 ```
 .
-├── ios/        Native SwiftUI app (iOS 17+)
-├── android/    Native Kotlin / Jetpack Compose app
-├── docs/
-└── .github/workflows/
-    ├── ios-checks.yml
-    ├── ios-release.yml
-    ├── android-checks.yml
-    └── android-release.yml
+├── ios/        SwiftUI app (iOS 17+)
+└── android/    Kotlin / Jetpack Compose app (minSdk 29)
 ```
 
-The two apps are completely separate — no shared code between them. They each
-talk to a Muxy server (the macOS app in `~/Projects/muxy`) over WebSocket using
-the protocol defined in `ios/MuxyShared/`. The Android side has its own
-re-implementation of that protocol in Kotlin.
+The two apps share no code. Each talks to a Muxy mac server over WebSocket (default port `4865`).
 
-## iOS
+## Install
+
+### iOS (TestFlight)
+
+1. Join via [TestFlight](https://testflight.apple.com/join/7t1AaYHW).
+2. On your Mac, open Muxy → Settings (`Cmd + ,`) → Mobile, enable **Allow mobile device connection**.
+3. Open the iOS app, enter the IP and port, approve the connection on your Mac.
+
+### Android (Closed Testing)
+
+1. Join the [testers group](https://groups.google.com/g/muxy-testers).
+2. Opt in at the [testing link](https://play.google.com/apps/testing/com.muxy.app).
+3. Install from [Google Play](https://play.google.com/store/apps/details?id=com.muxy.app).
+4. On your Mac, open Muxy → Settings (`Cmd + ,`) → Mobile, enable **Allow mobile device connection**.
+5. Open the Android app, enter the IP and port, approve the connection on your Mac.
+
+## Development
+
+### iOS
 
 ```sh
 cd ios
@@ -28,10 +37,7 @@ open MuxyMobile.xcodeproj
 scripts/run-mobile.sh
 ```
 
-`MuxyShared/` is a local Swift package consumed by the Xcode project via
-`XCLocalSwiftPackageReference "."` (i.e. it picks up `ios/Package.swift`).
-
-## Android
+### Android
 
 ```sh
 cd android
@@ -40,33 +46,6 @@ cd android
 
 Open `android/` in Android Studio for development.
 
-## CI
-
-- `ios-checks` — SwiftFormat, SwiftLint, simulator build on every PR touching `ios/**`.
-- `ios-release` — manual `workflow_dispatch`; archives, signs, uploads to App Store Connect.
-- `android-checks` — Gradle lint, debug assemble, unit tests on every PR touching `android/**`.
-- `android-release` — manual `workflow_dispatch`; builds a signed AAB and (optionally) uploads to Play Store as a draft.
-
-iOS release secrets carried over from the original repo:
-`APPLE_DISTRIBUTION_CERTIFICATE`, `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD`,
-`KEYCHAIN_PASSWORD`, `APP_STORE_CONNECT_API_KEY`, `APP_STORE_CONNECT_KEY_ID`,
-`APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_PROVISIONING_PROFILE`, `APPLE_TEAM_ID`.
-
-Android release secrets:
-`ANDROID_SIGNING_KEY_BASE64` (base64 of `upload-keystore.jks`),
-`ANDROID_KEY_STORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`,
-and optional `PLAY_SERVICE_ACCOUNT_JSON` (raw JSON; if absent the Play upload step is skipped).
-
-For local manual releases, see `android/scripts/release.sh` and `android/RELEASE.md`.
-
-## Migration
-
-This repo was extracted from `~/Projects/muxy` (mac app + iOS app + shared)
-and `~/Projects/muxy-android`. See `docs/migration-task.md` for the cleanup
-checklist on the source mac repo.
-
 ## License
 
-This project is source-available under the Functional Source License 1.1 with
-an Apache 2.0 future grant (`FSL-1.1-ALv2`). See `LICENSE` for the full terms
-and `LICENSE-NOTES.md` for a plain-language summary.
+Source-available under the Functional Source License 1.1 with an Apache 2.0 future grant (`FSL-1.1-ALv2`). See `LICENSE` and `LICENSE-NOTES.md`.
