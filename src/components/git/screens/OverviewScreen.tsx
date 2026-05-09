@@ -2,10 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { client } from '@/state';
 import { useTokens } from '@/theme';
+import type { VCSPullRequest } from '@/transport';
 
-import { useVCSStatus } from '../useVCSStatus';
+import { useGitStatus, useGitStore } from '../gitStore';
 import {
   ActionGrid,
   Divider,
@@ -25,17 +25,21 @@ type Props = {
 
 export function OverviewScreen({ projectId, setRoute }: Props) {
   const tokens = useTokens();
-  const { status, loading, error, reload } = useVCSStatus(projectId);
+  const { status, loading, error, reload } = useGitStatus(projectId);
+  const pull = useGitStore((s) => s.pull);
+  const push = useGitStore((s) => s.push);
 
   const [pulling, setPulling] = useState(false);
   const [pushing, setPushing] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const onPull = async () => {
     setPulling(true);
+    setActionError(null);
     try {
-      await client.request('vcsPull', { type: 'vcsPull', value: { projectID: projectId } });
-      await reload();
-    } catch {
+      await pull(projectId);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to pull');
     } finally {
       setPulling(false);
     }
@@ -43,10 +47,11 @@ export function OverviewScreen({ projectId, setRoute }: Props) {
 
   const onPush = async () => {
     setPushing(true);
+    setActionError(null);
     try {
-      await client.request('vcsPush', { type: 'vcsPush', value: { projectID: projectId } });
-      await reload();
-    } catch {
+      await push(projectId);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to push');
     } finally {
       setPushing(false);
     }
@@ -148,8 +153,7 @@ export function OverviewScreen({ projectId, setRoute }: Props) {
           {
             icon: 'git-pull-request-outline',
             label: hasPR ? 'PR' : 'New PR',
-            onPress: () => setRoute({ name: 'createPR' }),
-            disabled: hasPR,
+            onPress: () => setRoute({ name: hasPR ? 'pullRequest' : 'createPR' }),
           },
         ]}
       />
@@ -160,14 +164,9 @@ export function OverviewScreen({ projectId, setRoute }: Props) {
             icon="git-pull-request"
             iconColor={tokens.accent.primary}
             title={`#${status.pullRequest.number} → ${status.pullRequest.baseBranch}`}
-            subtitle={`${status.pullRequest.state}${status.pullRequest.isDraft ? ' • draft' : ''}`}
-            trailing={<Ionicons name="open-outline" size={18} color={tokens.text.muted} />}
-            onPress={() => {
-              const url = status.pullRequest?.url;
-              if (url) {
-                import('expo-web-browser').then((wb) => wb.openBrowserAsync(url)).catch(() => {});
-              }
-            }}
+            subtitle={prRowSubtitle(status.pullRequest)}
+            trailing={<Ionicons name="chevron-forward" size={18} color={tokens.text.muted} />}
+            onPress={() => setRoute({ name: 'pullRequest' })}
           />
         </Section>
       ) : null}
@@ -228,6 +227,7 @@ export function OverviewScreen({ projectId, setRoute }: Props) {
         </Section>
       )}
 
+      {actionError ? <ErrorText>{actionError}</ErrorText> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
     </ScrollView>
   );
@@ -236,6 +236,18 @@ export function OverviewScreen({ projectId, setRoute }: Props) {
 function fileNameOf(path: string): string {
   const idx = path.lastIndexOf('/');
   return idx >= 0 ? path.slice(idx + 1) : path;
+}
+
+function prRowSubtitle(pr: VCSPullRequest): string {
+  const parts: string[] = [pr.state.toLowerCase()];
+  if (pr.isDraft) parts.push('draft');
+  const checks = pr.checks;
+  if (checks && checks.total > 0) {
+    if (checks.failing > 0) parts.push(`${checks.failing} failing`);
+    else if (checks.pending > 0) parts.push(`${checks.pending} pending`);
+    else parts.push('checks passing');
+  }
+  return parts.join(' • ');
 }
 
 const styles = StyleSheet.create({
