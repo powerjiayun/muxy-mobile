@@ -10,13 +10,11 @@ Native iOS and Android clients for the [Muxy](https://github.com/muxy-app/muxy) 
 2. On your Mac, open Muxy → Settings (`Cmd + ,`) → Mobile, enable **Allow mobile device connection**.
 3. Open the iOS app, enter the IP and port, approve the connection on your Mac.
 
-### Android (Closed Testing)
+### Android
 
-1. Join the [testers group](https://groups.google.com/g/muxy-testers).
-2. Opt in at the [testing link](https://play.google.com/apps/testing/com.muxy.app).
-3. Install from [Google Play](https://play.google.com/store/apps/details?id=com.muxy.app).
-4. On your Mac, open Muxy → Settings (`Cmd + ,`) → Mobile, enable **Allow mobile device connection**.
-5. Open the Android app, enter the IP and port, approve the connection on your Mac.
+1. Download from [Play Store](https://play.google.com/store/apps/details?id=com.muxy.app)
+2. On your Mac, open Muxy → Settings (`Cmd + ,`) → Mobile, enable **Allow mobile device connection**.
+3. Open the Android app, enter the IP and port, approve the connection on your Mac.
 
 ## Development
 
