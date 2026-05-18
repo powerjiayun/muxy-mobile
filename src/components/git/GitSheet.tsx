@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTokens } from '@/theme';
 
 import { GitScreens, type GitRoute } from './GitScreens';
+import { fileNameOf } from './ui';
 
 type Props = {
   visible: boolean;
@@ -186,6 +187,8 @@ function headerTitleFor(route: GitRoute): string {
       return 'New branch';
     case 'newWorktree':
       return 'New worktree';
+    case 'fileDiff':
+      return fileNameOf(route.filePath);
   }
 }
 
