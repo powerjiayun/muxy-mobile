@@ -23,14 +23,17 @@ import {
   type TerminalDimensions,
   type TerminalWebViewHandle,
 } from './TerminalWebView';
+import { scheduleTerminalInputFocus } from './terminalFocus';
 
 type Props = {
   paneId: string;
+  onNewTerminal?: () => void;
+  onSelectTabShortcut?: (digit: number) => void;
 };
 
 const INPUT_SENTINEL = '​';
 
-export function TerminalView({ paneId }: Props) {
+export function TerminalView({ paneId, onNewTerminal, onSelectTabShortcut }: Props) {
   const tokens = useTokens();
   const webRef = useRef<TerminalWebViewHandle>(null);
   const inputRef = useRef<TextInput>(null);
@@ -63,6 +66,7 @@ export function TerminalView({ paneId }: Props) {
   const [ready, setReady] = useState(false);
   const [nerdFontLoaded, setNerdFontLoaded] = useState<boolean>(() => getNerdFont() !== null);
   const useNerdFont = useSettingsStore((s) => s.useNerdFont);
+  const autoFocusTerminal = useSettingsStore((s) => s.autoFocusTerminal);
 
   const fontFamily = useNerdFont && nerdFontLoaded
     ? `'${NERD_FONT_FAMILY}', Menlo, monospace`
@@ -96,6 +100,11 @@ export function TerminalView({ paneId }: Props) {
   const ownershipLost = sessionForUs?.kind === 'lost';
   const failed = sessionForUs?.kind === 'failed';
   const reconnecting = connectionPhase === 'reconnecting' || connectionPhase === 'connecting';
+
+  useEffect(() => {
+    if (!autoFocusTerminal) return;
+    return scheduleTerminalInputFocus(inputRef.current);
+  }, [paneId, autoFocusTerminal]);
 
   const onResume = () => {
     if (!dimensions) return;
@@ -204,6 +213,8 @@ export function TerminalView({ paneId }: Props) {
           }}
           onData={handleData}
           onTap={handleTap}
+          onNewTerminalShortcut={onNewTerminal}
+          onSelectTabShortcut={onSelectTabShortcut}
           onRenderer={(renderer, reason) => {
             if (reason) {
               console.log('[terminal] renderer=' + renderer + ' reason=' + reason);

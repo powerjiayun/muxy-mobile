@@ -185,6 +185,35 @@ function buildWorkspaces(): Record<string, Workspace> {
   };
 }
 
+function initialNextTabNumber(workspaces: Record<string, Workspace>): number {
+  let max = 0;
+  for (const ws of Object.values(workspaces)) {
+    visitTabs(ws, (tabID, paneID) => {
+      for (const id of [tabID, paneID]) {
+        if (!id) continue;
+        const match = /-(\d+)$/.exec(id);
+        if (!match) continue;
+        const n = Number(match[1]);
+        if (Number.isFinite(n) && n > max) max = n;
+      }
+    });
+  }
+  return max + 1;
+}
+
+function visitTabs(workspace: Workspace, fn: (tabID: string, paneID: string | undefined) => void) {
+  const stack = [workspace.root];
+  while (stack.length) {
+    const node = stack.pop();
+    if (!node) continue;
+    if (node.type === 'tabArea') {
+      for (const tab of node.tabArea.tabs) fn(tab.id, tab.paneID);
+    } else {
+      stack.push(node.split.first, node.split.second);
+    }
+  }
+}
+
 function buildStatus(): Record<string, VCSStatus> {
   return {
     [MUXY_ID]: {
@@ -230,6 +259,7 @@ export class DemoBackend {
   private statusByProject = buildStatus();
   private branchesByProject = buildBranches();
   private greetedPanes = new Set<string>();
+  private nextTabNumber = initialNextTabNumber(this.workspaces);
 
   constructor(private readonly emit: DemoEmitter) {}
 
@@ -308,7 +338,26 @@ export class DemoBackend {
         return { type: 'workspace', value: ws } as MethodMap[M]['result'];
       }
 
-      case 'createTab':
+      case 'createTab': {
+        const p = (params as MethodParams<'createTab'>)!.value;
+        const ws = this.workspaces[p.projectID];
+        if (!ws) throw demoError(404, 'Project not found');
+        const area = ws.root.type === 'tabArea' ? ws.root.tabArea : null;
+        if (!area || (p.areaID && area.id !== p.areaID)) throw demoError(404, 'Area not found');
+        const num = this.nextTabNumber++;
+        const created = {
+          id: `demo-tab-${num}`,
+          kind: p.kind,
+          title: p.kind === 'terminal' ? 'zsh' : p.kind,
+          isPinned: false,
+          paneID: `demo-pane-${num}`,
+        };
+        area.tabs.push(created);
+        area.activeTabID = created.id;
+        this.emit('workspaceChanged', { type: 'workspace', value: ws });
+        return { type: 'tab', value: created } as MethodMap[M]['result'];
+      }
+
       case 'closeTab':
       case 'selectTab':
       case 'splitArea':

@@ -31,17 +31,34 @@ type Props = {
   onData?: (base64: string) => void;
   onError?: (message: string) => void;
   onTap?: () => void;
+  onNewTerminalShortcut?: () => void;
+  onSelectTabShortcut?: (digit: number) => void;
   onRenderer?: (renderer: string, reason?: string) => void;
 };
 
 export const TerminalWebView = forwardRef<TerminalWebViewHandle, Props>(function TerminalWebView(
-  { theme, onReady, onDimensions, onData, onError, onTap, onRenderer },
+  {
+    theme,
+    onReady,
+    onDimensions,
+    onData,
+    onError,
+    onTap,
+    onNewTerminalShortcut,
+    onSelectTabShortcut,
+    onRenderer,
+  },
   ref,
 ) {
   const webRef = useRef<WebView>(null);
 
   const [html] = useState(() =>
-    buildTerminalHtml({ theme, fontFamily: FONT_FAMILY, fontSize: FONT_SIZE }),
+    buildTerminalHtml({
+      theme,
+      fontFamily: FONT_FAMILY,
+      fontSize: FONT_SIZE,
+      commandShortcutsEnabled: Platform.OS !== 'ios',
+    }),
   );
 
   const send = (msg: object) => {
@@ -79,6 +96,12 @@ export const TerminalWebView = forwardRef<TerminalWebViewHandle, Props>(function
           return;
         case 'tap':
           onTap?.();
+          return;
+        case 'newTerminalShortcut':
+          onNewTerminalShortcut?.();
+          return;
+        case 'selectTabShortcut':
+          onSelectTabShortcut?.(msg.digit);
           return;
         case 'error':
           onError?.(msg.message);
