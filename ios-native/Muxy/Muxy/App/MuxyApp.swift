@@ -10,6 +10,9 @@ struct MuxyApp: App {
             RootView()
                 .environment(environment)
                 .environment(router)
+                .task {
+                    await environment.start()
+                }
         }
     }
 }

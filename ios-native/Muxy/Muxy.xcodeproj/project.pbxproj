@@ -23,6 +23,7 @@
 		A100000000000000000000AE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000AE /* PrivacyInfo.xcprivacy */; };
 		A100000000000000000000AF /* MuxyProtocol in Frameworks */ = {isa = PBXBuildFile; productRef = D100000000000000000000A1 /* MuxyProtocol */; };
 		A100000000000000000000B0 /* ScanPairScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000B0 /* ScanPairScreen.swift */; };
+		A100000000000000000000B9 /* MuxyCore in Frameworks */ = {isa = PBXBuildFile; productRef = D100000000000000000000A2 /* MuxyCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +55,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A100000000000000000000AF /* MuxyProtocol in Frameworks */,
+				A100000000000000000000B9 /* MuxyCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -213,6 +215,7 @@
 			name = Muxy;
 			packageProductDependencies = (
 				D100000000000000000000A1 /* MuxyProtocol */,
+				D100000000000000000000A2 /* MuxyCore */,
 			);
 			productName = Muxy;
 			productReference = B100000000000000000000A0 /* Muxy.app */;
@@ -245,6 +248,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				G100000000000000000000A1 /* XCLocalSwiftPackageReference "../MuxyProtocol" */,
+				G100000000000000000000A2 /* XCLocalSwiftPackageReference "../MuxyCore" */,
 			);
 			preferredProjectObjectVersion = 70;
 			productRefGroup = C100000000000000000000A2 /* Products */;
@@ -429,7 +433,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.muxy.app.native;
+				PRODUCT_BUNDLE_IDENTIFIER = com.muxy.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
@@ -457,7 +461,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.muxy.app.native;
+				PRODUCT_BUNDLE_IDENTIFIER = com.muxy.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
@@ -493,12 +497,20 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../MuxyProtocol;
 		};
+		G100000000000000000000A2 /* XCLocalSwiftPackageReference "../MuxyCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../MuxyCore;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		D100000000000000000000A1 /* MuxyProtocol */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MuxyProtocol;
+		};
+		D100000000000000000000A2 /* MuxyCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MuxyCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

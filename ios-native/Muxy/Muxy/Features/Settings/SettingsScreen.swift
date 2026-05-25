@@ -5,7 +5,18 @@ struct SettingsScreen: View {
     @Environment(AppEnvironment.self) private var environment
 
     var body: some View {
-        @Bindable var bindableEnvironment = environment
+        let useNerdFont = Binding(
+            get: { environment.settings.useNerdFont },
+            set: { environment.setUseNerdFont($0) }
+        )
+        let autoFocusTerminal = Binding(
+            get: { environment.settings.autoFocusTerminal },
+            set: { environment.setAutoFocusTerminal($0) }
+        )
+        let demoMode = Binding(
+            get: { environment.settings.demoMode },
+            set: { environment.setDemoMode($0) }
+        )
 
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.md) {
@@ -14,12 +25,12 @@ struct SettingsScreen: View {
                         toggleRow(
                             title: "Use Nerd Font",
                             hint: "JetBrains Mono with powerline and icon glyphs.",
-                            isOn: $bindableEnvironment.useNerdFont
+                            isOn: useNerdFont
                         )
                         toggleRow(
                             title: "Auto-focus terminal",
                             hint: "Focus the terminal automatically when switching or creating tabs. May open the on-screen keyboard.",
-                            isOn: $bindableEnvironment.autoFocusTerminal
+                            isOn: autoFocusTerminal
                         )
                     }
                 }
@@ -27,7 +38,7 @@ struct SettingsScreen: View {
                     toggleRow(
                         title: "Demo Mode",
                         hint: "Loads sample data so you can try the app without a desktop. Switching it off restores your real devices.",
-                        isOn: $bindableEnvironment.demoMode
+                        isOn: demoMode
                     )
                 }
                 section(label: "About") {

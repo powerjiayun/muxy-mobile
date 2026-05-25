@@ -1,18 +1,23 @@
+import MuxyCore
 import SwiftUI
 
 struct AddDeviceScreen: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppEnvironment.self) private var environment
     @Environment(AppRouter.self) private var router
 
     @State private var name: String = ""
     @State private var host: String = ""
     @State private var port: String = defaultPort
+    @State private var saving: Bool = false
+    @State private var error: String?
 
     private static let defaultPort = "4865"
 
     private var canSubmit: Bool {
-        !host.trimmingCharacters(in: .whitespaces).isEmpty
-            && !port.trimmingCharacters(in: .whitespaces).isEmpty
+        let trimmedHost = host.trimmingCharacters(in: .whitespaces)
+        let trimmedPort = port.trimmingCharacters(in: .whitespaces)
+        return !trimmedHost.isEmpty && Int(trimmedPort) != nil && !saving
     }
 
     var body: some View {
@@ -20,6 +25,12 @@ struct AddDeviceScreen: View {
             VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 nearbyCard
                 fieldsCard
+                if let error {
+                    Text(error)
+                        .font(.subheadline)
+                        .foregroundStyle(.red)
+                        .padding(.horizontal, Theme.Spacing.xs)
+                }
                 ctaButton
                 hintFooter
             }
@@ -115,11 +126,14 @@ struct AddDeviceScreen: View {
     }
 
     private var ctaButton: some View {
-        Button(action: pair) {
-            Text("Pair")
-                .font(.body.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Theme.Spacing.md)
+        Button(action: { Task { await save() } }) {
+            HStack(spacing: Theme.Spacing.sm) {
+                if saving { ProgressView() }
+                Text("Pair")
+                    .font(.body.weight(.semibold))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Theme.Spacing.md)
         }
         .buttonStyle(.borderedProminent)
         .disabled(!canSubmit)
@@ -144,7 +158,26 @@ struct AddDeviceScreen: View {
             .padding(.horizontal, Theme.Spacing.xs)
     }
 
-    private func pair() {}
+    private func save() async {
+        let trimmedHost = host.trimmingCharacters(in: .whitespaces)
+        let trimmedName = name.trimmingCharacters(in: .whitespaces)
+        guard let portNumber = Int(port.trimmingCharacters(in: .whitespaces)),
+              (1...65_535).contains(portNumber) else {
+            error = "Port must be between 1 and 65535."
+            return
+        }
+        error = nil
+        saving = true
+        defer { saving = false }
+
+        let record = DeviceRecord(
+            label: trimmedName.isEmpty ? trimmedHost : trimmedName,
+            host: trimmedHost,
+            port: portNumber
+        )
+        await environment.upsertDevice(record)
+        dismiss()
+    }
 }
 
 #Preview {

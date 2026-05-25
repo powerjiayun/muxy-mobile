@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../Muxy"
 
-BUNDLE_ID="com.muxy.app.native"
+BUNDLE_ID="com.muxy.app"
 
 if [ "${1:-}" = "stop" ]; then
   xcrun simctl terminate booted "$BUNDLE_ID" 2>/dev/null && echo "Muxy stopped" || echo "Muxy not running"

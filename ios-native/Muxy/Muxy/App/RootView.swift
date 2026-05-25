@@ -21,6 +21,11 @@ struct RootView: View {
     @ViewBuilder
     private var rootScreen: some View {
         switch environment.bootstrap {
+        case .loading:
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.Palette.background.ignoresSafeArea())
         case .onboarding:
             OnboardingScreen()
         case .devices:
