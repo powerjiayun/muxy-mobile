@@ -37,9 +37,10 @@ public actor PaneSessionController {
     }
 
     public func attach(cols: Int, rows: Int) async {
-        guard !attached else { return }
-        attached = true
-        subscribeToEvents()
+        if !attached {
+            attached = true
+            subscribeToEvents()
+        }
         do {
             let params = AnyTypedValue(
                 type: "takeOverPane",

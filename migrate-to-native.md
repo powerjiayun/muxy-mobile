@@ -457,6 +457,8 @@ Goal: migrate Git functionality after terminal core is stable.
 - All VCS types in `MuxyProtocol.Models.swift`: `GitFile`, `GitFileStatus`, `VCSStatus`, `VCSBranches`, `VCSDiff`, `VCSDiffRow`, `VCSPullRequest`, `VCSPRChecks`, `VCSPRMergeStateStatus`, `VCSPRCreated`, `VCSMergeMethod`.
 - All `vcs*` methods already in `MethodsAndEvents.swift`.
 - No VCS-related events in the protocol — VCS state is pull-based via `vcsRefresh` + `getVCSStatus`.
+- Phase 9 added a third event consumer (`themeObservationTask`) on `AppEnvironment` for `themeChanged`. Pattern: subscribe via `client.send(method: .subscribe, params: AnyTypedValue(type: "subscribe", value: .object(["events": .array([.string(EventName.X.rawValue)])])))`, then `for await event in await client.events()`. Reuse this shape for any VCS event you add later (though current protocol has none).
+- The `TabContentView` in `WorkspaceScreen.swift` has a `.vcs` branch currently showing a placeholder — replace with a push to a dedicated VCS NavigationStack, or change the workspace tab to push when selected.
 
 ### Notes for the implementer
 
@@ -464,6 +466,7 @@ Goal: migrate Git functionality after terminal core is stable.
 - The Expo UI lives in `app/projects/[id]/index.tsx` and various components — read for layout reference but write fresh Swift.
 - Each VCS view should be a separate sheet or pushed screen, not crammed into the Workspace. Recommend: a "Git" tab kind that pushes a dedicated VCS NavigationStack.
 - File diff: `VCSDiff.rows` is pre-formatted by the desktop. Just render hunk/context/addition/deletion lines with appropriate colors. No client-side diffing.
+- The reconnecting banner is inlined in `WorkspaceScreen.swift` (no shared component). If you put VCS in its own screen, decide whether to repeat the banner there or skip it.
 
 Build native equivalents for:
 

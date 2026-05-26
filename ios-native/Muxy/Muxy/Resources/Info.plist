@@ -61,5 +61,10 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Muxy uses the camera to scan pairing QR codes shown on your desktop.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>JetBrainsMonoNerdFontMono-Regular.ttf</string>
+		<string>JetBrainsMonoNerdFontMono-Bold.ttf</string>
+	</array>
 </dict>
 </plist>

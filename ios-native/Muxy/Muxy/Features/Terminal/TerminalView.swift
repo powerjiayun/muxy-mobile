@@ -3,6 +3,8 @@ import SwiftUI
 import UIKit
 
 struct MuxyTerminalView: UIViewRepresentable {
+    let theme: MuxyTerminalTheme
+    let useNerdFont: Bool
     let onInput: (ArraySlice<UInt8>) -> Void
     let onSize: (Int, Int) -> Void
     let configure: (MuxyTerminalHandle) -> Void
@@ -14,17 +16,19 @@ struct MuxyTerminalView: UIViewRepresentable {
     func makeUIView(context: Context) -> SwiftTerm.TerminalView {
         let view = SwiftTerm.TerminalView(frame: .zero)
         view.terminalDelegate = context.coordinator
-        view.font = UIFont.monospacedSystemFont(ofSize: 13, weight: .regular)
-        view.backgroundColor = .black
-        view.nativeBackgroundColor = .black
-        view.nativeForegroundColor = .white
-        configure(MuxyTerminalHandle(view: view))
+        let handle = MuxyTerminalHandle(view: view)
+        handle.apply(theme: theme)
+        handle.apply(useNerdFont: useNerdFont)
+        configure(handle)
         return view
     }
 
     func updateUIView(_ uiView: SwiftTerm.TerminalView, context: Context) {
         context.coordinator.onInput = onInput
         context.coordinator.onSize = onSize
+        let handle = MuxyTerminalHandle(view: uiView)
+        handle.apply(theme: theme)
+        handle.apply(useNerdFont: useNerdFont)
     }
 
     final class Coordinator: NSObject, TerminalViewDelegate {
@@ -74,5 +78,33 @@ final class MuxyTerminalHandle {
 
     func becomeFirstResponder() {
         _ = view?.becomeFirstResponder()
+    }
+
+    func apply(theme: MuxyTerminalTheme) {
+        guard let view else { return }
+        view.nativeBackgroundColor = theme.background
+        view.nativeForegroundColor = theme.foreground
+        view.backgroundColor = theme.background
+        view.caretColor = theme.cursor
+        view.installColors(theme.palette)
+    }
+
+    func apply(useNerdFont: Bool) {
+        guard let view else { return }
+        let pointSize = view.font.pointSize
+        view.font = TerminalFont.resolve(useNerdFont: useNerdFont, pointSize: pointSize)
+    }
+}
+
+enum TerminalFont {
+    static let nerdFontName = "JetBrainsMonoNerdFontMono-Regular"
+    static let nerdFontBoldName = "JetBrainsMonoNerdFontMono-Bold"
+
+    static func resolve(useNerdFont: Bool, pointSize: CGFloat) -> UIFont {
+        let size = pointSize > 0 ? pointSize : 13
+        if useNerdFont, let font = UIFont(name: nerdFontName, size: size) {
+            return font
+        }
+        return UIFont.monospacedSystemFont(ofSize: size, weight: .regular)
     }
 }

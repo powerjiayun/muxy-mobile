@@ -10,16 +10,20 @@ struct WorkspaceScreen: View {
     @Environment(AppRouter.self) private var router
 
     var body: some View {
-        Group {
-            switch environment.workspaceState {
-            case .loading:
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case .workspace(let workspace):
-                workspaceContent(workspace)
-            case .failed(let message):
-                failureView(message)
+        VStack(spacing: 0) {
+            reconnectingBanner
+            Group {
+                switch environment.workspaceState {
+                case .loading:
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .workspace(let workspace):
+                    workspaceContent(workspace)
+                case .failed(let message):
+                    failureView(message)
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Theme.Palette.background.ignoresSafeArea())
         .navigationTitle(projectTitle)
@@ -51,6 +55,35 @@ struct WorkspaceScreen: View {
             default:
                 break
             }
+        }
+    }
+
+    @ViewBuilder
+    private var reconnectingBanner: some View {
+        if let label = reconnectingLabel {
+            HStack(spacing: Theme.Spacing.sm) {
+                ProgressView()
+                    .scaleEffect(0.7)
+                Text(label)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.xs)
+            .frame(maxWidth: .infinity)
+            .background(Theme.Palette.surface)
+            .overlay(Divider(), alignment: .bottom)
+        }
+    }
+
+    private var reconnectingLabel: String? {
+        switch environment.connectionState {
+        case .reconnecting(let attempt): return "Reconnecting… (attempt \(attempt))"
+        case .connecting: return "Connecting…"
+        case .authenticating: return "Authenticating…"
+        case .suspended: return "Paused. Resuming when the app comes back to the foreground."
+        default: return nil
         }
     }
 

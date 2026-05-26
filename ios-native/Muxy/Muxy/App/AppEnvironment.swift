@@ -1,5 +1,6 @@
 import Foundation
 import MuxyCore
+import MuxyProtocol
 import Observation
 import OSLog
 
@@ -30,6 +31,8 @@ final class AppEnvironment {
     private(set) var projectLogos: [String: Data] = [:]
     private(set) var workspaceState: WorkspaceUpdate = .loading
     private(set) var activeWorkspaceProjectID: String?
+    private(set) var terminalTheme: MuxyTerminalTheme = .default
+    private(set) var localDeviceID: String = ""
     var lastConnectError: String?
 
     private var stateObservationTask: Task<Void, Never>?
@@ -38,6 +41,7 @@ final class AppEnvironment {
     private var projectsService: ProjectsService?
     private var workspaceObservationTask: Task<Void, Never>?
     private var workspaceService: WorkspaceService?
+    private var themeObservationTask: Task<Void, Never>?
     private var pendingLogoRequests: Set<String> = []
     private let logger = Logger(subsystem: "com.muxy.app", category: "AppEnvironment")
 
@@ -72,6 +76,7 @@ final class AppEnvironment {
         let loadedDevices = (try? await deviceRepository.loadAll()) ?? []
         settings = loadedSettings
         devices = loadedDevices
+        localDeviceID = await installIdentity.ensureDeviceID()
         bootstrap = loadedSettings.hasOnboarded ? .devices : .onboarding
         observeConnectionState()
         observeDiscovery()
@@ -106,20 +111,61 @@ final class AppEnvironment {
             activeDeviceID = nil
             stopProjects()
             stopWorkspace()
+            stopThemeObservation()
         case .connected:
             lastConnectError = nil
             if let deviceID = activeDeviceID {
                 Task { await self.setNeedsRepair(deviceID: deviceID, value: false) }
             }
             startProjects()
+            startThemeObservation()
         case .connecting, .authenticating, .reconnecting, .suspended:
             lastConnectError = nil
             stopProjects()
             stopWorkspace()
+            stopThemeObservation()
         case .failed(let reason):
             handleFailure(reason)
             stopProjects()
             stopWorkspace()
+            stopThemeObservation()
+        }
+    }
+
+    private func startThemeObservation() {
+        stopThemeObservation()
+        let activeDevice = devices.first { $0.id == activeDeviceID }
+        terminalTheme = MuxyTerminalTheme.from(pairing: activeDevice?.pairing)
+        let manager = connectionManager
+        themeObservationTask = Task { [weak self] in
+            guard let client = await manager.activeClientHandle() else { return }
+            let subscribeParams = AnyTypedValue(
+                type: "subscribe",
+                value: .object(["events": .array([.string(EventName.themeChanged.rawValue)])])
+            )
+            _ = try? await client.send(method: .subscribe, params: subscribeParams)
+            let stream = await client.events()
+            for await event in stream {
+                if Task.isCancelled { return }
+                guard event.payload.event == EventName.themeChanged.rawValue,
+                      let value = event.payload.data?.value else { continue }
+                await self?.applyThemeChange(value)
+            }
+        }
+    }
+
+    private func stopThemeObservation() {
+        themeObservationTask?.cancel()
+        themeObservationTask = nil
+    }
+
+    private func applyThemeChange(_ value: AnyCodableValue) {
+        do {
+            let data = try JSONEncoder().encode(AnyCodable(value))
+            let change = try JSONDecoder().decode(ThemeChange.self, from: data)
+            terminalTheme = MuxyTerminalTheme.from(change: change, previous: terminalTheme)
+        } catch {
+            logger.error("themeChanged decode failed: \(error)")
         }
     }
 
