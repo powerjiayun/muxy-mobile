@@ -2,28 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { create } from 'zustand';
 
 import { bytesToBase64, stringToBase64 } from '@/lib/base64';
 import { useTokens } from '@/theme';
 
 import { Joystick, type JoystickDirection } from './Joystick';
+import { type Modifier, useModifierStore } from './modifierState';
 
-export type Modifier = 'ctrl' | 'shift' | 'alt' | 'meta';
-
-type ModifierState = {
-  active: Modifier | null;
-  slot: Modifier;
-  set: (m: Modifier | null) => void;
-  setSlot: (m: Modifier) => void;
-};
-
-const useModifierStore = create<ModifierState>((set) => ({
-  active: null,
-  slot: 'ctrl',
-  set: (m) => set({ active: m }),
-  setSlot: (m) => set({ slot: m }),
-}));
+export { transformWithModifiers, type Modifier } from './modifierState';
 
 const MODIFIER_OPTIONS: { id: Modifier; label: string; symbol: string }[] = [
   { id: 'ctrl', label: 'ctrl', symbol: '⌃' },
@@ -50,8 +36,9 @@ export function KeyBar({
 }) {
   const tokens = useTokens();
   const active = useModifierStore((s) => s.active);
+  const locked = useModifierStore((s) => s.locked);
   const slot = useModifierStore((s) => s.slot);
-  const setActive = useModifierStore((s) => s.set);
+  const arm = useModifierStore((s) => s.arm);
   const setSlot = useModifierStore((s) => s.setSlot);
 
   const send = (bytes: Uint8Array) => onBytes(bytesToBase64(bytes));
@@ -97,10 +84,11 @@ export function KeyBar({
           <ModifierKey
             slot={slot}
             active={active}
-            onTap={() => setActive(active === slot ? null : slot)}
+            locked={locked}
+            onArm={(m, lock) => arm(m, lock)}
             onPickFromMenu={(m) => {
               setSlot(m);
-              setActive(m);
+              arm(m);
             }}
           />
           <CapsuleButton label="tab" onPress={() => send(TAB)} />
@@ -115,41 +103,6 @@ export function KeyBar({
       <Joystick size={48} onDirection={onJoystick} />
     </View>
   );
-}
-
-export function transformWithModifiers(base64: string): string {
-  const { active, set } = useModifierStore.getState();
-  if (!active) return base64;
-
-  let bytes: Uint8Array;
-  try {
-    const bin = globalThis.atob(base64);
-    bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  } catch {
-    return base64;
-  }
-  if (bytes.length === 0) return base64;
-
-  const ch = bytes[0]!;
-  let result = bytes;
-
-  if (active === 'ctrl') {
-    let mapped: number | null = null;
-    if (ch >= 0x40 && ch <= 0x5f) mapped = ch - 0x40;
-    else if (ch >= 0x60 && ch <= 0x7e) mapped = ch - 0x60;
-    else if (ch === 0x20) mapped = 0x00;
-    else if (ch === 0x3f) mapped = 0x7f;
-    if (mapped !== null) result = new Uint8Array([mapped]);
-  } else if (active === 'alt' || active === 'meta') {
-    const prefixed = new Uint8Array(result.length + 1);
-    prefixed[0] = 0x1b;
-    prefixed.set(result, 1);
-    result = prefixed;
-  }
-
-  set(null);
-  return bytesToBase64(result);
 }
 
 function CapsuleButton({ label, onPress }: { label: string; onPress: () => void }) {
@@ -189,24 +142,30 @@ function CapsuleIconButton({
   );
 }
 
+const DOUBLE_TAP_MS = 280;
+
 function ModifierKey({
   slot,
   active,
-  onTap,
+  locked,
+  onArm,
   onPickFromMenu,
 }: {
   slot: Modifier;
   active: Modifier | null;
-  onTap: () => void;
+  locked: boolean;
+  onArm: (m: Modifier | null, locked: boolean) => void;
   onPickFromMenu: (m: Modifier) => void;
 }) {
   const tokens = useTokens();
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchor, setAnchor] = useState<{ x: number; y: number; width: number } | null>(null);
   const buttonRef = useRef<View>(null);
+  const lastTapAtRef = useRef(0);
 
   const slotOption = MODIFIER_OPTIONS.find((o) => o.id === slot) ?? MODIFIER_OPTIONS[0]!;
   const isArmed = active === slot;
+  const isLocked = isArmed && locked;
 
   const openMenu = () => {
     buttonRef.current?.measureInWindow((x, y, width) => {
@@ -215,17 +174,34 @@ function ModifierKey({
     });
   };
 
+  const handleTap = () => {
+    const now = Date.now();
+    const isDoubleTap = now - lastTapAtRef.current < DOUBLE_TAP_MS;
+    lastTapAtRef.current = now;
+    if (isDoubleTap) {
+      onArm(slot, true);
+      return;
+    }
+    if (isLocked || isArmed) {
+      onArm(null, false);
+      return;
+    }
+    onArm(slot, false);
+  };
+
   return (
     <>
       <Pressable
         ref={buttonRef}
-        onPress={onTap}
+        onPress={handleTap}
         onLongPress={openMenu}
         delayLongPress={300}
         style={({ pressed }) => [
           styles.capsuleBtn,
           {
-            backgroundColor: isArmed ? tokens.accent.primary : 'transparent',
+            backgroundColor: isLocked ? 'transparent' : isArmed ? tokens.accent.primary : 'transparent',
+            borderWidth: isLocked ? 1.5 : 0,
+            borderColor: isLocked ? tokens.accent.primary : 'transparent',
             borderRadius: 999,
             opacity: pressed ? 0.7 : 1,
           },
@@ -234,14 +210,14 @@ function ModifierKey({
           <Text
             style={[
               styles.capsuleLabel,
-              { color: isArmed ? tokens.accent.contrast : tokens.text.primary },
+              { color: isLocked ? tokens.accent.primary : isArmed ? tokens.accent.contrast : tokens.text.primary },
             ]}>
             {slotOption.label}
           </Text>
           <Ionicons
             name="chevron-up"
             size={11}
-            color={isArmed ? tokens.accent.contrast : tokens.text.muted}
+            color={isLocked ? tokens.accent.primary : isArmed ? tokens.accent.contrast : tokens.text.muted}
           />
         </View>
       </Pressable>
