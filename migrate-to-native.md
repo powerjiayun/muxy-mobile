@@ -403,7 +403,10 @@ Goal: make the native terminal usable for daily work.
 
 ### What's already there (read before starting)
 
-- Phase 8 built `PaneSessionController` and the SwiftTerm wrapper. This phase only adds chrome around them — no new transport.
+- Phase 8 built `PaneSessionController` (MuxyCore) and the SwiftTerm wrapper. This phase only adds chrome around them — no new transport.
+- `PaneSessionController` exposes `PaneSessionEvent` cases: `.snapshot([UInt8])`, `.output([UInt8])`, `.ownershipChanged(PaneOwnership)`, `.attachFailed(String)`. `ownershipChanged` is already streamed but `TerminalTabView` currently ignores it — wire it to an overlay in this phase.
+- `MuxyTerminalView` (UIViewRepresentable, in `Muxy/Features/Terminal/TerminalView.swift`) takes `onInput`, `onSize`, and `configure` callbacks. Configure receives a `MuxyTerminalHandle` for `feed(bytes:)` and `becomeFirstResponder()`. Extend the handle with `setColors`/`setFont` for Phase 9 theming.
+- Initial cols/rows are seeded at 80×24 in `TerminalTabView`; SwiftTerm's `sizeChanged` delegate callback fires on layout and triggers `resize`. Keyboard accessory bar should plumb through `MuxyTerminalView`'s `onInput` callback path (or call `feed` directly on the handle if the bytes are local — but for shortcuts that need to go to the shell, route via `controller.sendInput`).
 - Reconnect banner was once a `DesignSystem/Components/ConnectionBanner.swift` (deleted in cleanup). If you need to bring it back, do it lightly — overlay above content on Devices/Projects/Workspace screens driven by `environment.connectionState`. Don't make it a multi-purpose component until you have a second use site.
 - Theme mapping: `MuxyProtocol.DeviceTheme` (themeFg/themeBg/themePalette) is what the desktop sends in the `pairing` payload. `Pairing` is stored in `DeviceRecord.pairing`. Read theme palette from there to seed SwiftTerm colors. There's also `themeChanged` event for live updates.
 

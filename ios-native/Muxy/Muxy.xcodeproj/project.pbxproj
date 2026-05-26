@@ -25,6 +25,9 @@
 		A100000000000000000000B0 /* ScanPairScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000B0 /* ScanPairScreen.swift */; };
 		A100000000000000000000BC /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BC /* QRScannerView.swift */; };
 		A100000000000000000000B9 /* MuxyCore in Frameworks */ = {isa = PBXBuildFile; productRef = D100000000000000000000A2 /* MuxyCore */; };
+		A100000000000000000000C0 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = D100000000000000000000A3 /* SwiftTerm */; };
+		A100000000000000000000C1 /* TerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000C1 /* TerminalView.swift */; };
+		A100000000000000000000C2 /* TerminalTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000C2 /* TerminalTabView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -47,6 +50,8 @@
 		B100000000000000000000BB /* Muxy.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Muxy.entitlements; sourceTree = "<group>"; };
 		B100000000000000000000B0 /* ScanPairScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanPairScreen.swift; sourceTree = "<group>"; };
 		B100000000000000000000BC /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+		B100000000000000000000C1 /* TerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalView.swift; sourceTree = "<group>"; };
+		B100000000000000000000C2 /* TerminalTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalTabView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -59,6 +64,7 @@
 			files = (
 				A100000000000000000000AF /* MuxyProtocol in Frameworks */,
 				A100000000000000000000B9 /* MuxyCore in Frameworks */,
+				A100000000000000000000C0 /* SwiftTerm in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -127,6 +133,7 @@
 				C100000000000000000000AA /* Pairing */,
 				C100000000000000000000AB /* Projects */,
 				C100000000000000000000AC /* Workspace */,
+				C100000000000000000000AF /* Terminal */,
 				C100000000000000000000AD /* Settings */,
 				C100000000000000000000AE /* Billing */,
 			);
@@ -175,6 +182,15 @@
 			path = Workspace;
 			sourceTree = "<group>";
 		};
+		C100000000000000000000AF /* Terminal */ = {
+			isa = PBXGroup;
+			children = (
+				B100000000000000000000C1 /* TerminalView.swift */,
+				B100000000000000000000C2 /* TerminalTabView.swift */,
+			);
+			path = Terminal;
+			sourceTree = "<group>";
+		};
 		C100000000000000000000AD /* Settings */ = {
 			isa = PBXGroup;
 			children = (
@@ -221,6 +237,7 @@
 			packageProductDependencies = (
 				D100000000000000000000A1 /* MuxyProtocol */,
 				D100000000000000000000A2 /* MuxyCore */,
+				D100000000000000000000A3 /* SwiftTerm */,
 			);
 			productName = Muxy;
 			productReference = B100000000000000000000A0 /* Muxy.app */;
@@ -254,6 +271,7 @@
 			packageReferences = (
 				G100000000000000000000A1 /* XCLocalSwiftPackageReference "../MuxyProtocol" */,
 				G100000000000000000000A2 /* XCLocalSwiftPackageReference "../MuxyCore" */,
+				G100000000000000000000A3 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
 			);
 			preferredProjectObjectVersion = 70;
 			productRefGroup = C100000000000000000000A2 /* Products */;
@@ -294,6 +312,8 @@
 				A100000000000000000000BC /* QRScannerView.swift in Sources */,
 				A100000000000000000000A9 /* ProjectsScreen.swift in Sources */,
 				A100000000000000000000AA /* WorkspaceScreen.swift in Sources */,
+				A100000000000000000000C1 /* TerminalView.swift in Sources */,
+				A100000000000000000000C2 /* TerminalTabView.swift in Sources */,
 				A100000000000000000000AB /* SettingsScreen.swift in Sources */,
 				A100000000000000000000AC /* PaywallScreen.swift in Sources */,
 			);
@@ -511,6 +531,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		G100000000000000000000A3 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.13.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		D100000000000000000000A1 /* MuxyProtocol */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -519,6 +550,11 @@
 		D100000000000000000000A2 /* MuxyCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MuxyCore;
+		};
+		D100000000000000000000A3 /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = G100000000000000000000A3 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

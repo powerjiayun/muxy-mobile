@@ -217,35 +217,36 @@ private struct TabContentView: View {
     let tab: MuxyProtocol.Tab
 
     var body: some View {
+        switch tab.kind {
+        case .terminal:
+            if let paneID = tab.paneID {
+                TerminalTabView(paneID: paneID)
+            } else {
+                placeholder(icon: "terminal", message: "Terminal tab has no pane.")
+            }
+        case .vcs:
+            placeholder(icon: "arrow.triangle.branch", message: "Git tabs aren't supported on mobile yet.")
+        case .editor:
+            placeholder(icon: "doc.text", message: "Editor tabs aren't supported on mobile yet.")
+        case .diffViewer:
+            placeholder(icon: "rectangle.split.2x1", message: "Diff tabs aren't supported on mobile yet.")
+        }
+    }
+
+    private func placeholder(icon: String, message: String) -> some View {
         VStack(spacing: Theme.Spacing.sm) {
-            Image(systemName: placeholderIcon)
+            Image(systemName: icon)
                 .font(.system(size: 36))
                 .foregroundStyle(.secondary)
             Text(tab.title)
                 .font(.title3.weight(.semibold))
-            Text(placeholderMessage)
+            Text(message)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
         .padding(.horizontal, Theme.Spacing.xxl)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var placeholderIcon: String {
-        switch tab.kind {
-        case .terminal: return "terminal"
-        case .vcs: return "arrow.triangle.branch"
-        case .editor: return "doc.text"
-        case .diffViewer: return "rectangle.split.2x1"
-        }
-    }
-
-    private var placeholderMessage: String {
-        switch tab.kind {
-        case .terminal: return "Terminal rendering arrives in Phase 8."
-        case .vcs, .editor, .diffViewer: return "This tab kind isn't supported on mobile yet."
-        }
     }
 }
 
