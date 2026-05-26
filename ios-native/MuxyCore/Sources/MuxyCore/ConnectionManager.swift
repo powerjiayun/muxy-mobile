@@ -52,7 +52,6 @@ public actor ConnectionManager {
         cancelLifecycle()
         await tearDownClient()
         activeRecord = record
-        transition(to: .idle)
         startLifecycle()
     }
 

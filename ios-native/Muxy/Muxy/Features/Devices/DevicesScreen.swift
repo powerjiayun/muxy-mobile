@@ -147,6 +147,7 @@ private struct DeviceRow: View {
             }
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
     }
 }
 
