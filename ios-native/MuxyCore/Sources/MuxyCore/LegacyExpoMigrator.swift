@@ -14,6 +14,7 @@ public struct LegacyMigrationResult: Equatable, Sendable {
     }
 
     public static let skipped = LegacyMigrationResult(didRun: false, importedDeviceCount: 0)
+    public static let ranEmpty = LegacyMigrationResult(didRun: true, importedDeviceCount: 0)
 }
 
 public actor NoopLegacyExpoMigrator: LegacyExpoMigrator {
@@ -30,6 +31,6 @@ public actor NoopLegacyExpoMigrator: LegacyExpoMigrator {
             return .skipped
         }
         defaults.set(true, forKey: didMigrateKey)
-        return .skipped
+        return .ranEmpty
     }
 }

@@ -39,7 +39,8 @@ public actor ConnectionManager {
     }
 
     public func stateStream() -> AsyncStream<ConnectionState> {
-        AsyncStream { continuation in
+        precondition(stateContinuation == nil, "ConnectionManager.stateStream may only be subscribed once")
+        return AsyncStream { continuation in
             self.stateContinuation = continuation
             continuation.yield(self.state)
         }
@@ -51,6 +52,7 @@ public actor ConnectionManager {
         cancelLifecycle()
         await tearDownClient()
         activeRecord = record
+        transition(to: .idle)
         startLifecycle()
     }
 
@@ -113,6 +115,9 @@ public actor ConnectionManager {
             case .needsRepair:
                 transition(to: .failed(reason: .needsRepair))
                 return
+            case .invalid(let reason):
+                transition(to: .failed(reason: reason))
+                return
             case .retry:
                 attempt += 1
             }
@@ -122,20 +127,19 @@ public actor ConnectionManager {
     private enum AttemptOutcome {
         case connected
         case needsRepair
+        case invalid(ConnectionState.FailureReason)
         case retry
     }
 
     private func attemptConnection(record: DeviceRecord) async -> AttemptOutcome {
         guard let url = URL(string: "ws://\(record.host):\(record.port)") else {
-            transition(to: .failed(reason: .other("invalid url")))
-            return .retry
+            return .invalid(.other("invalid host or port"))
         }
         let identity: PairingService.Identity
         do {
             identity = try await identityProvider()
         } catch {
-            transition(to: .failed(reason: .other("identity unavailable")))
-            return .retry
+            return .invalid(.other("identity unavailable: \(error)"))
         }
 
         let client = clientFactory(url)
@@ -174,8 +178,13 @@ public actor ConnectionManager {
 
     private func waitForDrop() async {
         guard let client = activeClient else { return }
-        for await _ in await client.events() {
-            if Task.isCancelled { return }
+        do {
+            let stream = try await client.events()
+            for await _ in stream {
+                if Task.isCancelled { return }
+            }
+        } catch {
+            return
         }
     }
 

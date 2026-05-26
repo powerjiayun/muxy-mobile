@@ -18,14 +18,29 @@ public actor DeviceRepository {
         return cache
     }
 
-    public func upsert(_ record: DeviceRecord) async throws {
+    public func findByEndpoint(host: String, port: Int) async throws -> DeviceRecord? {
+        _ = try await loadAll()
+        return cache.first { $0.host == host && $0.port == port }
+    }
+
+    public func upsert(_ record: DeviceRecord) async throws -> DeviceRecord {
         _ = try await loadAll()
         if let idx = cache.firstIndex(where: { $0.id == record.id }) {
             cache[idx] = record
-        } else {
-            cache.append(record)
+            try await store.save(cache)
+            return record
         }
+        if let idx = cache.firstIndex(where: { $0.host == record.host && $0.port == record.port }) {
+            var merged = record
+            merged.id = cache[idx].id
+            merged.createdAt = cache[idx].createdAt
+            cache[idx] = merged
+            try await store.save(cache)
+            return merged
+        }
+        cache.append(record)
         try await store.save(cache)
+        return record
     }
 
     public func remove(id: String) async throws {

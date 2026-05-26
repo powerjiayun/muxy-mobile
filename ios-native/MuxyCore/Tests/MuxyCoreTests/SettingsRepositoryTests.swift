@@ -14,11 +14,11 @@ struct SettingsRepositoryTests {
     }
 
     @Test("save then load round-trips")
-    func roundTrips() async {
+    func roundTrips() async throws {
         let key = freshKey()
         let repo = SettingsRepository(key: key)
         let saved = SettingsRecord(hasOnboarded: true, useNerdFont: true, autoFocusTerminal: false, demoMode: true)
-        await repo.save(saved)
+        try await repo.save(saved)
 
         let reloaded = await SettingsRepository(key: key).load()
         #expect(reloaded == saved)

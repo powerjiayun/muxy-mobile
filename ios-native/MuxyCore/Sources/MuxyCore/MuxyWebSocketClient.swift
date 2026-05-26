@@ -3,6 +3,8 @@ import MuxyProtocol
 
 public enum WebSocketClientError: Error, Equatable {
     case socketClosed
+    case alreadyConnected
+    case alreadySubscribed
     case requestTimeout
     case protocolViolation(String)
     case server(code: Int, message: String)
@@ -17,27 +19,44 @@ public actor MuxyWebSocketClient {
     private var pending: [String: PendingRequest] = [:]
     private var eventContinuation: AsyncStream<EventEnvelope>.Continuation?
     private var receiveLoopTask: Task<Void, Never>?
-    private var didFinish = false
+    private var lifecycle: Lifecycle = .idle
 
     private let encoder: JSONEncoder
-    private let decoder: JSONDecoder
+
+    private enum Lifecycle: Equatable {
+        case idle
+        case open
+        case closed
+    }
 
     public init(url: URL, urlSession: URLSession = .shared) {
         self.url = url
         self.urlSession = urlSession
         self.encoder = JSONEncoder()
-        self.decoder = JSONDecoder()
     }
 
     public func connect() async throws {
-        guard task == nil else { return }
+        switch lifecycle {
+        case .open:
+            throw WebSocketClientError.alreadyConnected
+        case .closed:
+            throw WebSocketClientError.socketClosed
+        case .idle:
+            break
+        }
         let task = urlSession.webSocketTask(with: url)
         self.task = task
+        lifecycle = .open
         task.resume()
         startReceiveLoop()
     }
 
     public func close() async {
+        guard lifecycle == .open else {
+            lifecycle = .closed
+            return
+        }
+        lifecycle = .closed
         finishAll(error: WebSocketClientError.socketClosed)
         task?.cancel(with: .normalClosure, reason: nil)
         task = nil
@@ -45,10 +64,12 @@ public actor MuxyWebSocketClient {
         receiveLoopTask = nil
     }
 
-    public func events() -> AsyncStream<EventEnvelope> {
-        AsyncStream { continuation in
+    public func events() throws -> AsyncStream<EventEnvelope> {
+        if eventContinuation != nil {
+            throw WebSocketClientError.alreadySubscribed
+        }
+        return AsyncStream { continuation in
             self.eventContinuation = continuation
-            continuation.onTermination = { _ in }
         }
     }
 
@@ -57,7 +78,9 @@ public actor MuxyWebSocketClient {
         params: AnyTypedValue?,
         timeout: TimeInterval = 30
     ) async throws -> AnyTypedValue? {
-        guard task != nil else { throw WebSocketClientError.socketClosed }
+        guard lifecycle == .open, let task else {
+            throw WebSocketClientError.socketClosed
+        }
 
         let id = allocateID()
         let envelope = RequestEnvelope(
@@ -68,6 +91,12 @@ public actor MuxyWebSocketClient {
             throw WebSocketClientError.protocolViolation("encoding failed")
         }
 
+        do {
+            try await task.send(.string(json))
+        } catch {
+            throw WebSocketClientError.socketClosed
+        }
+
         return try await withCheckedThrowingContinuation { continuation in
             let timeoutTask = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
@@ -75,14 +104,6 @@ public actor MuxyWebSocketClient {
                 await self?.failRequest(id: id, with: WebSocketClientError.requestTimeout)
             }
             pending[id] = PendingRequest(continuation: continuation, timeoutTask: timeoutTask)
-
-            Task { [weak self] in
-                do {
-                    try await self?.task?.send(.string(json))
-                } catch {
-                    await self?.failRequest(id: id, with: error)
-                }
-            }
         }
     }
 
@@ -98,7 +119,7 @@ public actor MuxyWebSocketClient {
     }
 
     private func receiveLoop() async {
-        while let task, !didFinish {
+        while let task, lifecycle == .open {
             do {
                 let message = try await task.receive()
                 handle(message: message)
@@ -151,8 +172,6 @@ public actor MuxyWebSocketClient {
     }
 
     private func finishAll(error: Error) {
-        guard !didFinish else { return }
-        didFinish = true
         for (_, pending) in pending {
             pending.timeoutTask?.cancel()
             pending.continuation.resume(throwing: error)

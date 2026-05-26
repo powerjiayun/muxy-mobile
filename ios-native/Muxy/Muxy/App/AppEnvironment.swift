@@ -1,6 +1,7 @@
 import Foundation
 import MuxyCore
 import Observation
+import OSLog
 
 @MainActor
 @Observable
@@ -25,6 +26,7 @@ final class AppEnvironment {
     private(set) var activeDeviceID: String?
 
     private var stateObservationTask: Task<Void, Never>?
+    private let logger = Logger(subsystem: "com.muxy.app", category: "AppEnvironment")
 
     init(
         settingsRepository: SettingsRepository = SettingsRepository(),
@@ -102,20 +104,32 @@ final class AppEnvironment {
         updateSettings(next)
     }
 
-    func upsertDevice(_ record: DeviceRecord) async {
-        try? await deviceRepository.upsert(record)
-        devices = (try? await deviceRepository.loadAll()) ?? devices
+    func upsertDevice(_ record: DeviceRecord) async -> DeviceRecord? {
+        do {
+            let saved = try await deviceRepository.upsert(record)
+            devices = (try? await deviceRepository.loadAll()) ?? devices
+            return saved
+        } catch {
+            logger.error("upsertDevice failed: \(error)")
+            return nil
+        }
     }
 
     func removeDevice(id: String) async {
         if activeDeviceID == id {
+            activeDeviceID = nil
             await connectionManager.disconnect()
         }
         try? await deviceRepository.remove(id: id)
         devices = (try? await deviceRepository.loadAll()) ?? devices
     }
 
-    func pair(host: String, port: Int, label: String?) async -> Result<DeviceRecord, PairingFailureReason> {
+    func pair(
+        host: String,
+        port: Int,
+        label: String?,
+        phase: @MainActor @escaping (PairingPhase) -> Void = { _ in }
+    ) async -> Result<DeviceRecord, PairingFailureReason> {
         let deviceID = await installIdentity.ensureDeviceID()
         let token: String
         do {
@@ -126,18 +140,32 @@ final class AppEnvironment {
         let deviceName = await installIdentity.resolveDeviceName()
         let identity = PairingService.Identity(deviceID: deviceID, deviceName: deviceName, token: token)
         let endpoint = PairingService.Endpoint(host: host, port: port)
-        let result = await pairingService.pair(endpoint: endpoint, identity: identity, phase: { _ in })
+        let phaseStream = AsyncStream<PairingPhase>.makeStream()
+        let phaseTask = Task { @MainActor in
+            for await value in phaseStream.stream {
+                phase(value)
+            }
+        }
+        defer {
+            phaseStream.continuation.finish()
+            phaseTask.cancel()
+        }
+        let result = await pairingService.pair(
+            endpoint: endpoint,
+            identity: identity,
+            phase: { phaseStream.continuation.yield($0) }
+        )
 
         switch result {
         case .success(let pairingResult):
-            let record = DeviceRecord(
+            let proposed = DeviceRecord(
                 label: (label?.isEmpty == false ? label : nil) ?? host,
                 host: host,
                 port: port,
                 pairing: pairingResult.pairing
             )
-            await upsertDevice(record)
-            return .success(record)
+            let saved = await upsertDevice(proposed) ?? proposed
+            return .success(saved)
         case .failure(let reason):
             return .failure(reason)
         }
@@ -163,13 +191,25 @@ final class AppEnvironment {
 
     private func updateSettings(_ next: SettingsRecord) {
         settings = next
+        let logger = self.logger
         Task { [settingsRepository, next] in
-            await settingsRepository.save(next)
+            do {
+                try await settingsRepository.save(next)
+            } catch {
+                logger.error("settings save failed: \(error)")
+            }
         }
     }
 
     private static func fallbackRepository() -> DeviceRepository {
-        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("muxy-devices-fallback.json")
-        return (try? DeviceRepository(fileURL: tmp))!
+        let fm = FileManager.default
+        let dir: URL
+        if let documents = try? fm.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) {
+            dir = documents.appendingPathComponent("MuxyFallback", isDirectory: true)
+        } else {
+            dir = fm.temporaryDirectory.appendingPathComponent("MuxyFallback", isDirectory: true)
+        }
+        let file = dir.appendingPathComponent("devices.json")
+        return (try? DeviceRepository(fileURL: file))!
     }
 }

@@ -193,12 +193,20 @@ struct AddDeviceScreen: View {
         error = nil
         phase = .connecting
 
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 600_000_000)
-            if phase == .connecting { phase = .awaitingApproval }
-        }
-
-        let result = await environment.pair(host: trimmedHost, port: portNumber, label: trimmedName)
+        let result = await environment.pair(
+            host: trimmedHost,
+            port: portNumber,
+            label: trimmedName,
+            phase: { servicePhase in
+                switch servicePhase {
+                case .connecting: phase = .connecting
+                case .authenticating: phase = .connecting
+                case .awaitingApproval: phase = .awaitingApproval
+                case .authenticated: phase = .done
+                case .failed: break
+                }
+            }
+        )
         switch result {
         case .success:
             phase = .done

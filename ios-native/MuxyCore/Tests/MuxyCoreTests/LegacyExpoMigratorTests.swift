@@ -6,11 +6,12 @@ import Testing
 struct LegacyExpoMigratorTests {
     private func freshKey() -> String { "muxy.tests.migrator.\(UUID().uuidString)" }
 
-    @Test("first run sets the didMigrate flag")
+    @Test("first run reports didRun=true with zero imports and sets the flag")
     func firstRunSetsFlag() async throws {
         let key = freshKey()
         let migrator = NoopLegacyExpoMigrator(didMigrateKey: key)
-        _ = try await migrator.migrateIfNeeded()
+        let result = try await migrator.migrateIfNeeded()
+        #expect(result == .ranEmpty)
         #expect(UserDefaults.standard.bool(forKey: key) == true)
         UserDefaults.standard.removeObject(forKey: key)
     }

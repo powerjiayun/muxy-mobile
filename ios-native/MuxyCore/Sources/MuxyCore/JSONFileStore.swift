@@ -29,6 +29,10 @@ public actor JSONFileStore<Value: Codable & Sendable> {
         try ensureDirectory()
         let data = try encoder.encode(value)
         try data.write(to: url, options: .atomic)
+        if let handle = try? FileHandle(forUpdating: url) {
+            try? handle.synchronize()
+            try? handle.close()
+        }
     }
 
     public func delete() throws {

@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import Security
 
 public struct KeychainStore: Sendable {
@@ -9,6 +10,8 @@ public struct KeychainStore: Sendable {
 
     public let service: String
     public let accessGroup: String?
+
+    private static let logger = Logger(subsystem: "com.muxy.app", category: "KeychainStore")
 
     public init(service: String, accessGroup: String? = nil) {
         self.service = service
@@ -25,9 +28,10 @@ public struct KeychainStore: Sendable {
 
         switch status {
         case errSecSuccess:
-            guard let data = result as? Data,
-                  let string = String(data: data, encoding: .utf8) else {
-                throw KeychainError.unexpectedData
+            guard let data = result as? Data, let string = String(data: data, encoding: .utf8) else {
+                Self.logger.error("Corrupt keychain entry at service=\(service) account=\(account); deleting")
+                try? delete(account: account)
+                return nil
             }
             return string
         case errSecItemNotFound:

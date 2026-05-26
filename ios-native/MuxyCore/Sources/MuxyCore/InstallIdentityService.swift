@@ -4,8 +4,8 @@ import UIKit
 #endif
 
 public actor InstallIdentityService {
-    public enum InstallIdentityError: Error {
-        case keychainUnavailable
+    public enum InstallIdentityError: Error, Equatable {
+        case secureRandomFailed(OSStatus)
     }
 
     private let defaults: UserDefaults
@@ -47,7 +47,7 @@ public actor InstallIdentityService {
                 cachedToken = existing
                 return existing
             }
-            let generated = Self.generateToken()
+            let generated = try Self.generateToken()
             try keychain.write(account: tokenAccount, value: generated)
             cachedToken = generated
             return generated
@@ -57,7 +57,7 @@ public actor InstallIdentityService {
                 cachedToken = existing
                 return existing
             }
-            let generated = Self.generateToken()
+            let generated = try Self.generateToken()
             defaults.set(generated, forKey: fallbackKey)
             cachedToken = generated
             return generated
@@ -73,12 +73,12 @@ public actor InstallIdentityService {
 #endif
     }
 
-    private static func generateToken() -> String {
+    private static func generateToken() throws -> String {
         var bytes = [UInt8](repeating: 0, count: 32)
         let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        if status == errSecSuccess {
-            return Data(bytes).base64EncodedString()
+        guard status == errSecSuccess else {
+            throw InstallIdentityError.secureRandomFailed(status)
         }
-        return UUID().uuidString + UUID().uuidString
+        return Data(bytes).base64EncodedString()
     }
 }
