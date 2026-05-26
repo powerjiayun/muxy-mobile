@@ -38,6 +38,8 @@ const TILDE = new Uint8Array([0x7e]);
 const SLASH = new Uint8Array([0x2f]);
 const PIPE = new Uint8Array([0x7c]);
 const DASH = new Uint8Array([0x2d]);
+const CTRL_C = new Uint8Array([0x03]);
+const CTRL_D = new Uint8Array([0x04]);
 const ARROW_UP = new Uint8Array([0x1b, 0x5b, 0x41]);
 const ARROW_DOWN = new Uint8Array([0x1b, 0x5b, 0x42]);
 const ARROW_RIGHT = new Uint8Array([0x1b, 0x5b, 0x43]);
@@ -104,6 +106,12 @@ export function KeyBar({
             }}
           />
           <CapsuleButton label="tab" onPress={() => send(TAB)} />
+          <CapsuleButton label="^C" onPress={() => send(CTRL_C)} />
+          <CapsuleButton label="^D" onPress={() => send(CTRL_D)} />
+          <CapsuleIconButton icon="arrow-back" accessibilityLabel="Arrow left" onPress={() => send(ARROW_LEFT)} />
+          <CapsuleIconButton icon="arrow-up" accessibilityLabel="Arrow up" onPress={() => send(ARROW_UP)} />
+          <CapsuleIconButton icon="arrow-down" accessibilityLabel="Arrow down" onPress={() => send(ARROW_DOWN)} />
+          <CapsuleIconButton icon="arrow-forward" accessibilityLabel="Arrow right" onPress={() => send(ARROW_RIGHT)} />
           <CapsuleButton label="~" onPress={() => send(TILDE)} />
           <CapsuleButton label="/" onPress={() => send(SLASH)} />
           <CapsuleIconButton icon="clipboard-outline" accessibilityLabel="Paste" onPress={onPaste} />
