@@ -4,7 +4,6 @@ import MuxyProtocol
 public enum WebSocketClientError: Error, Equatable {
     case socketClosed
     case alreadyConnected
-    case alreadySubscribed
     case requestTimeout
     case protocolViolation(String)
     case server(code: Int, message: String)
@@ -17,7 +16,8 @@ public actor MuxyWebSocketClient {
     private var task: URLSessionWebSocketTask?
     private var nextRequestID: Int = 0
     private var pending: [String: PendingRequest] = [:]
-    private var eventContinuation: AsyncStream<EventEnvelope>.Continuation?
+    private var eventSubscribers: [Int: AsyncStream<EventEnvelope>.Continuation] = [:]
+    private var nextSubscriberID: Int = 0
     private var receiveLoopTask: Task<Void, Never>?
     private var lifecycle: Lifecycle = .idle
 
@@ -64,13 +64,19 @@ public actor MuxyWebSocketClient {
         receiveLoopTask = nil
     }
 
-    public func events() throws -> AsyncStream<EventEnvelope> {
-        if eventContinuation != nil {
-            throw WebSocketClientError.alreadySubscribed
-        }
+    public func events() -> AsyncStream<EventEnvelope> {
+        let id = nextSubscriberID
+        nextSubscriberID += 1
         return AsyncStream { continuation in
-            self.eventContinuation = continuation
+            self.eventSubscribers[id] = continuation
+            continuation.onTermination = { [weak self] _ in
+                Task { await self?.removeEventSubscriber(id: id) }
+            }
         }
+    }
+
+    private func removeEventSubscriber(id: Int) {
+        eventSubscribers.removeValue(forKey: id)
     }
 
     public func send(
@@ -146,7 +152,9 @@ public actor MuxyWebSocketClient {
             case .response(let response):
                 completeRequest(response: response.payload)
             case .event(let event):
-                eventContinuation?.yield(event)
+                for (_, continuation) in eventSubscribers {
+                    continuation.yield(event)
+                }
             }
         } catch {
             return
@@ -177,8 +185,10 @@ public actor MuxyWebSocketClient {
             pending.continuation.resume(throwing: error)
         }
         pending.removeAll()
-        eventContinuation?.finish()
-        eventContinuation = nil
+        for (_, continuation) in eventSubscribers {
+            continuation.finish()
+        }
+        eventSubscribers.removeAll()
     }
 }
 

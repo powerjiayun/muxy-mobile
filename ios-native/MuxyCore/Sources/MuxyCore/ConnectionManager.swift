@@ -177,13 +177,9 @@ public actor ConnectionManager {
 
     private func waitForDrop() async {
         guard let client = activeClient else { return }
-        do {
-            let stream = try await client.events()
-            for await _ in stream {
-                if Task.isCancelled { return }
-            }
-        } catch {
-            return
+        let stream = await client.events()
+        for await _ in stream {
+            if Task.isCancelled { return }
         }
     }
 

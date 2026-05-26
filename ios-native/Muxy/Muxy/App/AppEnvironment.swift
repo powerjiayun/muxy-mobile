@@ -26,10 +26,15 @@ final class AppEnvironment {
     private(set) var connectionState: ConnectionState = .idle
     private(set) var activeDeviceID: String?
     private(set) var discoveryState: DiscoveryUpdate = .searching
+    private(set) var projectsState: ProjectsUpdate = .loading
+    private(set) var projectLogos: [String: Data] = [:]
     var lastConnectError: String?
 
     private var stateObservationTask: Task<Void, Never>?
     private var discoveryObservationTask: Task<Void, Never>?
+    private var projectsObservationTask: Task<Void, Never>?
+    private var projectsService: ProjectsService?
+    private var pendingLogoRequests: Set<String> = []
     private let logger = Logger(subsystem: "com.muxy.app", category: "AppEnvironment")
 
     init(
@@ -95,15 +100,73 @@ final class AppEnvironment {
         switch state {
         case .idle:
             activeDeviceID = nil
+            stopProjects()
         case .connected:
             lastConnectError = nil
             if let deviceID = activeDeviceID {
                 Task { await self.setNeedsRepair(deviceID: deviceID, value: false) }
             }
+            startProjects()
         case .connecting, .authenticating, .reconnecting, .suspended:
             lastConnectError = nil
+            stopProjects()
         case .failed(let reason):
             handleFailure(reason)
+            stopProjects()
+        }
+    }
+
+    private func startProjects() {
+        stopProjects()
+        let manager = connectionManager
+        projectsObservationTask = Task { [weak self] in
+            guard let client = await manager.activeClientHandle() else { return }
+            let service = ProjectsService(client: client)
+            self?.assign(service: service)
+            let stream = await service.stream()
+            for await update in stream {
+                self?.projectsState = update
+            }
+        }
+    }
+
+    private func assign(service: ProjectsService) {
+        projectsService = service
+    }
+
+    private func stopProjects() {
+        projectsObservationTask?.cancel()
+        projectsObservationTask = nil
+        let service = projectsService
+        projectsService = nil
+        projectsState = .loading
+        projectLogos.removeAll()
+        pendingLogoRequests.removeAll()
+        if let service {
+            Task { await service.stop() }
+        }
+    }
+
+    func refreshProjects() async {
+        guard let service = projectsService else { return }
+        await service.refresh()
+    }
+
+    func requestLogo(projectID: String) {
+        guard projectLogos[projectID] == nil,
+              !pendingLogoRequests.contains(projectID),
+              let service = projectsService else { return }
+        pendingLogoRequests.insert(projectID)
+        Task { [weak self] in
+            let data = await service.loadLogo(projectID: projectID)
+            self?.applyLogo(projectID: projectID, data: data)
+        }
+    }
+
+    private func applyLogo(projectID: String, data: Data?) {
+        pendingLogoRequests.remove(projectID)
+        if let data {
+            projectLogos[projectID] = data
         }
     }
 
