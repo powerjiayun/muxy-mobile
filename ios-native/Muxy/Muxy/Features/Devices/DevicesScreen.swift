@@ -6,6 +6,7 @@ struct DevicesScreen: View {
     @Environment(AppRouter.self) private var router
 
     @State private var deviceToDelete: DeviceRecord?
+    @State private var connectingID: String?
 
     var body: some View {
         Group {
@@ -52,6 +53,9 @@ struct DevicesScreen: View {
         } message: { _ in
             Text("Remove this device?")
         }
+        .onChange(of: environment.connectionState) { _, newState in
+            handleConnectionChange(newState)
+        }
     }
 
     private var emptyState: some View {
@@ -71,51 +75,76 @@ struct DevicesScreen: View {
     private var deviceList: some View {
         List {
             ForEach(environment.devices) { record in
-                DeviceRow(record: record)
-                    .listRowBackground(Theme.Palette.surface)
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            deviceToDelete = record
-                        } label: {
-                            Label("Remove", systemImage: "trash")
-                        }
+                Button {
+                    connectingID = record.id
+                    Task { await environment.connect(to: record) }
+                } label: {
+                    DeviceRow(record: record, isConnecting: connectingID == record.id)
+                }
+                .buttonStyle(.plain)
+                .listRowBackground(Theme.Palette.surface)
+                .swipeActions(edge: .trailing) {
+                    Button(role: .destructive) {
+                        deviceToDelete = record
+                    } label: {
+                        Label("Remove", systemImage: "trash")
                     }
-                    .contextMenu {
-                        Button(role: .destructive) {
-                            deviceToDelete = record
-                        } label: {
-                            Label("Remove", systemImage: "trash")
-                        }
+                }
+                .contextMenu {
+                    Button(role: .destructive) {
+                        deviceToDelete = record
+                    } label: {
+                        Label("Remove", systemImage: "trash")
                     }
+                }
             }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(Theme.Palette.background.ignoresSafeArea())
     }
+
+    private func handleConnectionChange(_ state: ConnectionState) {
+        switch state {
+        case .connected:
+            guard let id = connectingID else { return }
+            connectingID = nil
+            router.push(.projects(deviceID: id))
+        case .failed, .idle:
+            connectingID = nil
+        default:
+            break
+        }
+    }
 }
 
 private struct DeviceRow: View {
     let record: DeviceRecord
+    let isConnecting: Bool
 
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
             Image(systemName: "desktopcomputer")
                 .font(.system(size: 20))
-                .foregroundStyle(Theme.Palette.accent)
+                .foregroundStyle(.secondary)
                 .frame(width: 36, height: 36)
-                .background(Theme.Palette.background, in: RoundedRectangle(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.label)
                     .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
                 Text("\(record.host):\(record.port)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
+            if isConnecting {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
         }
         .padding(.vertical, 4)
     }

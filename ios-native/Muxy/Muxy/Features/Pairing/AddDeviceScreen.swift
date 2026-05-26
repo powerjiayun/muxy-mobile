@@ -9,15 +9,22 @@ struct AddDeviceScreen: View {
     @State private var name: String = ""
     @State private var host: String = ""
     @State private var port: String = defaultPort
-    @State private var saving: Bool = false
+    @State private var phase: Phase = .idle
     @State private var error: String?
 
     private static let defaultPort = "4865"
 
+    private enum Phase: Equatable {
+        case idle
+        case connecting
+        case awaitingApproval
+        case done
+    }
+
     private var canSubmit: Bool {
         let trimmedHost = host.trimmingCharacters(in: .whitespaces)
         let trimmedPort = port.trimmingCharacters(in: .whitespaces)
-        return !trimmedHost.isEmpty && Int(trimmedPort) != nil && !saving
+        return !trimmedHost.isEmpty && Int(trimmedPort) != nil && phase == .idle
     }
 
     var body: some View {
@@ -25,6 +32,15 @@ struct AddDeviceScreen: View {
             VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 nearbyCard
                 fieldsCard
+                if let phaseHint {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        ProgressView()
+                        Text(phaseHint)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, Theme.Spacing.xs)
+                }
                 if let error {
                     Text(error)
                         .font(.subheadline)
@@ -47,6 +63,7 @@ struct AddDeviceScreen: View {
                     Image(systemName: "xmark")
                 }
                 .accessibilityLabel("Close")
+                .disabled(phase != .idle && phase != .done)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -56,6 +73,15 @@ struct AddDeviceScreen: View {
                 }
                 .accessibilityLabel("Scan pairing QR code")
             }
+        }
+    }
+
+    private var phaseHint: String? {
+        switch phase {
+        case .connecting: return "Connecting to Muxy…"
+        case .awaitingApproval: return "Open Muxy on your desktop and approve this device."
+        case .done: return "Paired"
+        case .idle: return nil
         }
     }
 
@@ -114,6 +140,7 @@ struct AddDeviceScreen: View {
                 .textInputAutocapitalization(capitalize)
                 .keyboardType(keyboard)
                 .autocorrectionDisabled(disableAutocorrect)
+                .disabled(phase != .idle)
         }
         .padding(.horizontal, Theme.Spacing.lg)
         .padding(.vertical, Theme.Spacing.sm + 2)
@@ -126,14 +153,11 @@ struct AddDeviceScreen: View {
     }
 
     private var ctaButton: some View {
-        Button(action: { Task { await save() } }) {
-            HStack(spacing: Theme.Spacing.sm) {
-                if saving { ProgressView() }
-                Text("Pair")
-                    .font(.body.weight(.semibold))
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, Theme.Spacing.md)
+        Button(action: { Task { await pair() } }) {
+            Text(phase == .idle ? "Pair" : "Pairing…")
+                .font(.body.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Theme.Spacing.md)
         }
         .buttonStyle(.borderedProminent)
         .disabled(!canSubmit)
@@ -158,7 +182,7 @@ struct AddDeviceScreen: View {
             .padding(.horizontal, Theme.Spacing.xs)
     }
 
-    private func save() async {
+    private func pair() async {
         let trimmedHost = host.trimmingCharacters(in: .whitespaces)
         let trimmedName = name.trimmingCharacters(in: .whitespaces)
         guard let portNumber = Int(port.trimmingCharacters(in: .whitespaces)),
@@ -167,16 +191,32 @@ struct AddDeviceScreen: View {
             return
         }
         error = nil
-        saving = true
-        defer { saving = false }
+        phase = .connecting
 
-        let record = DeviceRecord(
-            label: trimmedName.isEmpty ? trimmedHost : trimmedName,
-            host: trimmedHost,
-            port: portNumber
-        )
-        await environment.upsertDevice(record)
-        dismiss()
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            if phase == .connecting { phase = .awaitingApproval }
+        }
+
+        let result = await environment.pair(host: trimmedHost, port: portNumber, label: trimmedName)
+        switch result {
+        case .success:
+            phase = .done
+            dismiss()
+        case .failure(let reason):
+            phase = .idle
+            error = describe(reason)
+        }
+    }
+
+    private func describe(_ reason: PairingFailureReason) -> String {
+        switch reason {
+        case .denied: return "Pairing was denied on the desktop."
+        case .timedOut: return "Pairing timed out. Try again and approve faster."
+        case .unreachable(let m): return "Could not reach Muxy: \(m)"
+        case .protocolViolation(let m): return "Protocol error: \(m)"
+        case .other(let m): return m
+        }
     }
 }
 

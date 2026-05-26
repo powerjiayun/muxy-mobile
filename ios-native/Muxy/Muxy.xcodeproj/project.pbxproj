@@ -24,6 +24,7 @@
 		A100000000000000000000AF /* MuxyProtocol in Frameworks */ = {isa = PBXBuildFile; productRef = D100000000000000000000A1 /* MuxyProtocol */; };
 		A100000000000000000000B0 /* ScanPairScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000B0 /* ScanPairScreen.swift */; };
 		A100000000000000000000B9 /* MuxyCore in Frameworks */ = {isa = PBXBuildFile; productRef = D100000000000000000000A2 /* MuxyCore */; };
+		A100000000000000000000BA /* ConnectionBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BA /* ConnectionBanner.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,7 +44,9 @@
 		B100000000000000000000AD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B100000000000000000000AE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B100000000000000000000AF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B100000000000000000000BB /* Muxy.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Muxy.entitlements; sourceTree = "<group>"; };
 		B100000000000000000000B0 /* ScanPairScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanPairScreen.swift; sourceTree = "<group>"; };
+		B100000000000000000000BA /* ConnectionBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionBanner.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -103,9 +106,18 @@
 		C100000000000000000000A4 /* DesignSystem */ = {
 			isa = PBXGroup;
 			children = (
+				C100000000000000000000DA /* Components */,
 				C100000000000000000000A7 /* Theme */,
 			);
 			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		C100000000000000000000DA /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				B100000000000000000000BA /* ConnectionBanner.swift */,
+			);
+			path = Components;
 			sourceTree = "<group>";
 		};
 		C100000000000000000000A7 /* Theme */ = {
@@ -193,6 +205,7 @@
 				B100000000000000000000AD /* Assets.xcassets */,
 				B100000000000000000000AE /* PrivacyInfo.xcprivacy */,
 				B100000000000000000000AF /* Info.plist */,
+				B100000000000000000000BB /* Muxy.entitlements */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -290,6 +303,7 @@
 				A100000000000000000000AA /* WorkspaceScreen.swift in Sources */,
 				A100000000000000000000AB /* SettingsScreen.swift in Sources */,
 				A100000000000000000000AC /* PaywallScreen.swift in Sources */,
+				A100000000000000000000BA /* ConnectionBanner.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -423,6 +437,7 @@
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
+				CODE_SIGN_ENTITLEMENTS = Muxy/Resources/Muxy.entitlements;
 				INFOPLIST_FILE = Muxy/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -451,6 +466,7 @@
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
+				CODE_SIGN_ENTITLEMENTS = Muxy/Resources/Muxy.entitlements;
 				INFOPLIST_FILE = Muxy/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

@@ -42,14 +42,26 @@ public actor InstallIdentityService {
 
     public func ensureInstallToken() throws -> String {
         if let cachedToken { return cachedToken }
-        if let existing = try keychain.read(account: tokenAccount) {
-            cachedToken = existing
-            return existing
+        do {
+            if let existing = try keychain.read(account: tokenAccount) {
+                cachedToken = existing
+                return existing
+            }
+            let generated = Self.generateToken()
+            try keychain.write(account: tokenAccount, value: generated)
+            cachedToken = generated
+            return generated
+        } catch KeychainStore.KeychainError.unexpectedStatus(-34018) {
+            let fallbackKey = "muxy.installToken.fallback.v1"
+            if let existing = defaults.string(forKey: fallbackKey) {
+                cachedToken = existing
+                return existing
+            }
+            let generated = Self.generateToken()
+            defaults.set(generated, forKey: fallbackKey)
+            cachedToken = generated
+            return generated
         }
-        let generated = Self.generateToken()
-        try keychain.write(account: tokenAccount, value: generated)
-        cachedToken = generated
-        return generated
     }
 
     public func resolveDeviceName() -> String {
