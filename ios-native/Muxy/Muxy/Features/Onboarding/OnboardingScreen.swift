@@ -157,7 +157,7 @@ struct OnboardingScreen: View {
     private func advance() {
         if isLast {
             environment.markOnboardingComplete()
-            router.present(.addDevice)
+            router.present(.addDevice(prefill: nil))
             return
         }
         withAnimation { index += 1 }

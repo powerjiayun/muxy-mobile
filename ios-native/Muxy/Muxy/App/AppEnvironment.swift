@@ -18,14 +18,18 @@ final class AppEnvironment {
     let pairingService: PairingService
     let migrator: LegacyExpoMigrator
     let connectionManager: ConnectionManager
+    let discoveryService: DiscoveryService
 
     private(set) var bootstrap: Bootstrap = .loading
     private(set) var devices: [DeviceRecord] = []
     private(set) var settings: SettingsRecord = .default
     private(set) var connectionState: ConnectionState = .idle
     private(set) var activeDeviceID: String?
+    private(set) var discoveryState: DiscoveryUpdate = .searching
+    var lastConnectError: String?
 
     private var stateObservationTask: Task<Void, Never>?
+    private var discoveryObservationTask: Task<Void, Never>?
     private let logger = Logger(subsystem: "com.muxy.app", category: "AppEnvironment")
 
     init(
@@ -33,13 +37,15 @@ final class AppEnvironment {
         deviceRepository: DeviceRepository? = nil,
         installIdentity: InstallIdentityService = InstallIdentityService(),
         pairingService: PairingService = PairingService(),
-        migrator: LegacyExpoMigrator = NoopLegacyExpoMigrator()
+        migrator: LegacyExpoMigrator = NoopLegacyExpoMigrator(),
+        discoveryService: DiscoveryService = DiscoveryService()
     ) {
         self.settingsRepository = settingsRepository
-        self.deviceRepository = (try? deviceRepository ?? DeviceRepository()) ?? Self.fallbackRepository()
+        self.deviceRepository = deviceRepository ?? (try! DeviceRepository())
         self.installIdentity = installIdentity
         self.pairingService = pairingService
         self.migrator = migrator
+        self.discoveryService = discoveryService
         let identity = installIdentity
         self.connectionManager = ConnectionManager(
             identityProvider: {
@@ -59,6 +65,7 @@ final class AppEnvironment {
         devices = loadedDevices
         bootstrap = loadedSettings.hasOnboarded ? .devices : .onboarding
         observeConnectionState()
+        observeDiscovery()
     }
 
     private func observeConnectionState() {
@@ -72,10 +79,86 @@ final class AppEnvironment {
         }
     }
 
+    private func observeDiscovery() {
+        discoveryObservationTask?.cancel()
+        let service = discoveryService
+        discoveryObservationTask = Task { [weak self] in
+            let stream = await service.stream()
+            for await update in stream {
+                await self?.applyDiscoveryUpdate(update)
+            }
+        }
+    }
+
     private func applyConnectionState(_ state: ConnectionState) {
         connectionState = state
-        if case .idle = state {
+        switch state {
+        case .idle:
             activeDeviceID = nil
+        case .connected:
+            lastConnectError = nil
+            if let deviceID = activeDeviceID {
+                Task { await self.setNeedsRepair(deviceID: deviceID, value: false) }
+            }
+        case .connecting, .authenticating, .reconnecting, .suspended:
+            lastConnectError = nil
+        case .failed(let reason):
+            handleFailure(reason)
+        }
+    }
+
+    private func handleFailure(_ reason: ConnectionState.FailureReason) {
+        let deviceID = activeDeviceID
+        switch reason {
+        case .needsRepair:
+            lastConnectError = "Pairing was revoked on the desktop. Re-pair to reconnect."
+            if let deviceID {
+                Task { await self.setNeedsRepair(deviceID: deviceID, value: true) }
+            }
+        case .unreachable(let m):
+            lastConnectError = "Could not reach the desktop: \(m)"
+        case .other(let m):
+            lastConnectError = m
+        }
+        activeDeviceID = nil
+    }
+
+    func clearConnectError() {
+        guard lastConnectError != nil else { return }
+        lastConnectError = nil
+    }
+
+    private func setNeedsRepair(deviceID: String, value: Bool) async {
+        guard
+            var record = try? await deviceRepository.loadAll().first(where: { $0.id == deviceID }),
+            record.needsRepair != value
+        else { return }
+        record.needsRepair = value
+        _ = try? await deviceRepository.upsert(record)
+        devices = (try? await deviceRepository.loadAll()) ?? devices
+    }
+
+    private func applyDiscoveryUpdate(_ update: DiscoveryUpdate) async {
+        discoveryState = update
+        guard case .services(let services) = update else { return }
+        await reconcileDevicesWithDiscovery(services)
+    }
+
+    private func reconcileDevicesWithDiscovery(_ services: [DiscoveredService]) async {
+        let snapshot = devices
+        var changed = false
+        for service in services {
+            guard let record = snapshot.first(where: { $0.serviceName == service.name }) else { continue }
+            if record.host == service.host && record.port == service.port { continue }
+            guard devices.contains(where: { $0.id == record.id }) else { continue }
+            var updated = record
+            updated.host = service.host
+            updated.port = service.port
+            _ = await upsertDevice(updated)
+            changed = true
+        }
+        if changed {
+            devices = (try? await deviceRepository.loadAll()) ?? devices
         }
     }
 
@@ -128,6 +211,7 @@ final class AppEnvironment {
         host: String,
         port: Int,
         label: String?,
+        serviceName: String? = nil,
         phase: @MainActor @escaping (PairingPhase) -> Void = { _ in }
     ) async -> Result<DeviceRecord, PairingFailureReason> {
         let deviceID = await installIdentity.ensureDeviceID()
@@ -159,9 +243,10 @@ final class AppEnvironment {
         switch result {
         case .success(let pairingResult):
             let proposed = DeviceRecord(
-                label: (label?.isEmpty == false ? label : nil) ?? host,
+                label: (label?.isEmpty == false ? label : nil) ?? serviceName ?? host,
                 host: host,
                 port: port,
+                serviceName: serviceName,
                 pairing: pairingResult.pairing
             )
             let saved = await upsertDevice(proposed) ?? proposed
@@ -201,15 +286,4 @@ final class AppEnvironment {
         }
     }
 
-    private static func fallbackRepository() -> DeviceRepository {
-        let fm = FileManager.default
-        let dir: URL
-        if let documents = try? fm.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) {
-            dir = documents.appendingPathComponent("MuxyFallback", isDirectory: true)
-        } else {
-            dir = fm.temporaryDirectory.appendingPathComponent("MuxyFallback", isDirectory: true)
-        }
-        let file = dir.appendingPathComponent("devices.json")
-        return (try? DeviceRepository(fileURL: file))!
-    }
 }

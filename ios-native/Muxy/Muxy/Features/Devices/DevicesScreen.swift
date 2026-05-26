@@ -7,6 +7,7 @@ struct DevicesScreen: View {
 
     @State private var deviceToDelete: DeviceRecord?
     @State private var connectingID: String?
+    @State private var lastAttemptedID: String?
 
     var body: some View {
         Group {
@@ -16,6 +17,13 @@ struct DevicesScreen: View {
                 deviceList
             }
         }
+        .alert(
+            alertTitle,
+            isPresented: alertBinding,
+            presenting: environment.lastConnectError,
+            actions: alertActions,
+            message: alertMessage
+        )
         .navigationTitle("Devices")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -28,7 +36,7 @@ struct DevicesScreen: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    router.present(.addDevice)
+                    router.present(.addDevice(prefill: nil))
                 } label: {
                     Image(systemName: "plus")
                 }
@@ -76,10 +84,12 @@ struct DevicesScreen: View {
         List {
             ForEach(environment.devices) { record in
                 Button {
-                    connectingID = record.id
-                    Task { await environment.connect(to: record) }
+                    handleRowTap(record)
                 } label: {
-                    DeviceRow(record: record, isConnecting: connectingID == record.id)
+                    DeviceRow(
+                        record: record,
+                        isConnecting: connectingID == record.id
+                    )
                 }
                 .buttonStyle(.plain)
                 .listRowBackground(Theme.Palette.surface)
@@ -102,6 +112,69 @@ struct DevicesScreen: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(Theme.Palette.background.ignoresSafeArea())
+    }
+
+    private var alertBinding: Binding<Bool> {
+        Binding(
+            get: { environment.lastConnectError != nil },
+            set: { newValue in
+                if !newValue {
+                    environment.clearConnectError()
+                    lastAttemptedID = nil
+                }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func alertActions(_ message: String) -> some View {
+        if let prefill = failedRepairPrefill {
+            Button("Re-pair") {
+                environment.clearConnectError()
+                lastAttemptedID = nil
+                router.present(.addDevice(prefill: prefill))
+            }
+        }
+        Button("OK", role: .cancel) {
+            environment.clearConnectError()
+            lastAttemptedID = nil
+        }
+    }
+
+    private func alertMessage(_ message: String) -> some View {
+        Text(message)
+    }
+
+    private var alertTitle: String {
+        if failedRepairPrefill != nil { return "Pairing revoked" }
+        return "Connection failed"
+    }
+
+    private var failedRepairPrefill: AddDevicePrefill? {
+        guard case .needsRepair = connectionFailureReason() else { return nil }
+        guard let id = environment.activeDeviceID ?? lastAttemptedID,
+              let record = environment.devices.first(where: { $0.id == id }) else { return nil }
+        return AddDevicePrefill(label: record.label, host: record.host, port: record.port, serviceName: record.serviceName)
+    }
+
+    private func connectionFailureReason() -> ConnectionState.FailureReason? {
+        if case .failed(let reason) = environment.connectionState { return reason }
+        return nil
+    }
+
+    private func handleRowTap(_ record: DeviceRecord) {
+        if record.needsRepair {
+            router.present(.addDevice(prefill: AddDevicePrefill(
+                label: record.label,
+                host: record.host,
+                port: record.port,
+                serviceName: record.serviceName
+            )))
+            return
+        }
+        connectingID = record.id
+        lastAttemptedID = record.id
+        Task { await environment.connect(to: record) }
     }
 
     private func handleConnectionChange(_ state: ConnectionState) {
@@ -132,9 +205,15 @@ private struct DeviceRow: View {
                 Text(record.label)
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
-                Text("\(record.host):\(record.port)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                if record.needsRepair {
+                    Text("Re-pair needed")
+                        .font(.subheadline)
+                        .foregroundStyle(.orange)
+                } else {
+                    Text("\(record.host):\(record.port)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer()
             if isConnecting {

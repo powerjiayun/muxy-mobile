@@ -46,9 +46,9 @@ struct RootView: View {
     @ViewBuilder
     private func sheetView(for sheet: AppSheet) -> some View {
         switch sheet {
-        case .addDevice:
+        case .addDevice(let prefill):
             NavigationStack {
-                AddDeviceScreen()
+                AddDeviceScreen(prefill: prefill)
             }
         case .scanPair:
             NavigationStack {

@@ -6,25 +6,38 @@ struct AddDeviceScreen: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(AppRouter.self) private var router
 
-    @State private var name: String = ""
-    @State private var host: String = ""
-    @State private var port: String = defaultPort
-    @State private var phase: Phase = .idle
+    let prefill: AddDevicePrefill?
+
+    @State private var name: String
+    @State private var host: String
+    @State private var port: String
+    @State private var serviceName: String?
+    @State private var phase: PairingPhase?
     @State private var error: String?
+
+    init(prefill: AddDevicePrefill? = nil) {
+        self.prefill = prefill
+        if let prefill {
+            _name = State(initialValue: prefill.label)
+            _host = State(initialValue: prefill.host)
+            _port = State(initialValue: String(prefill.port))
+            _serviceName = State(initialValue: prefill.serviceName)
+        } else {
+            _name = State(initialValue: "")
+            _host = State(initialValue: "")
+            _port = State(initialValue: AddDeviceScreen.defaultPort)
+            _serviceName = State(initialValue: nil)
+        }
+    }
 
     private static let defaultPort = "4865"
 
-    private enum Phase: Equatable {
-        case idle
-        case connecting
-        case awaitingApproval
-        case done
-    }
+    private var isBusy: Bool { phase != nil }
 
     private var canSubmit: Bool {
         let trimmedHost = host.trimmingCharacters(in: .whitespaces)
         let trimmedPort = port.trimmingCharacters(in: .whitespaces)
-        return !trimmedHost.isEmpty && Int(trimmedPort) != nil && phase == .idle
+        return !trimmedHost.isEmpty && Int(trimmedPort) != nil && !isBusy
     }
 
     var body: some View {
@@ -53,7 +66,7 @@ struct AddDeviceScreen: View {
             .padding(Theme.Spacing.lg)
         }
         .background(Theme.Palette.background.ignoresSafeArea())
-        .navigationTitle("Add device")
+        .navigationTitle(prefill == nil ? "Add device" : "Re-pair device")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -63,7 +76,7 @@ struct AddDeviceScreen: View {
                     Image(systemName: "xmark")
                 }
                 .accessibilityLabel("Close")
-                .disabled(phase != .idle && phase != .done)
+                .disabled(isBusy)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -77,34 +90,90 @@ struct AddDeviceScreen: View {
     }
 
     private var phaseHint: String? {
+        guard let phase else { return nil }
         switch phase {
-        case .connecting: return "Connecting to Muxy…"
+        case .connecting, .authenticating: return "Connecting to Muxy…"
         case .awaitingApproval: return "Open Muxy on your desktop and approve this device."
-        case .done: return "Paired"
-        case .idle: return nil
+        case .authenticated: return "Paired"
+        case .failed: return nil
         }
     }
 
     private var nearbyCard: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
             sectionLabel("Nearby Muxy desktops")
-            VStack {
-                HStack(spacing: Theme.Spacing.sm) {
-                    ProgressView()
-                    Text("Bonjour discovery arrives in Phase 4")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, Theme.Spacing.lg)
-                .padding(.vertical, Theme.Spacing.md)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(spacing: 0) {
+                nearbyContent
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.Palette.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.md)
                     .stroke(Color.secondary.opacity(0.2), lineWidth: 0.5)
             )
         }
+    }
+
+    @ViewBuilder
+    private var nearbyContent: some View {
+        switch environment.discoveryState {
+        case .searching:
+            nearbyMessage(spinner: true, text: "Searching the local network…")
+        case .services(let services) where services.isEmpty:
+            nearbyMessage(spinner: false, text: "No Muxy desktops found yet.")
+        case .services(let services):
+            ForEach(Array(services.enumerated()), id: \.element.id) { index, service in
+                if index > 0 { divider }
+                Button {
+                    select(service)
+                } label: {
+                    nearbyRow(service: service, selected: service.name == serviceName)
+                }
+                .buttonStyle(.plain)
+                .disabled(isBusy)
+            }
+        case .permissionDenied:
+            nearbyMessage(spinner: false, text: "Local network access is off. Enable it in Settings → Muxy → Local Network.")
+        case .failed(let message):
+            nearbyMessage(spinner: false, text: "Discovery failed: \(message)")
+        }
+    }
+
+    private func nearbyMessage(spinner: Bool, text: String) -> some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            if spinner { ProgressView() }
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, Theme.Spacing.lg)
+        .padding(.vertical, Theme.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func nearbyRow(service: DiscoveredService, selected: Bool) -> some View {
+        HStack(spacing: Theme.Spacing.md) {
+            Image(systemName: "desktopcomputer")
+                .font(.system(size: 18))
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(service.name)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
+                Text("\(service.host):\(service.port)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if selected {
+                Image(systemName: "checkmark")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.Palette.accent)
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.lg)
+        .padding(.vertical, Theme.Spacing.md)
+        .contentShape(Rectangle())
     }
 
     private var fieldsCard: some View {
@@ -120,6 +189,17 @@ struct AddDeviceScreen: View {
             RoundedRectangle(cornerRadius: Theme.Radius.md)
                 .stroke(Color.secondary.opacity(0.2), lineWidth: 0.5)
         )
+        .onChange(of: host) { _, _ in invalidateServiceNameIfMismatched() }
+        .onChange(of: port) { _, _ in invalidateServiceNameIfMismatched() }
+    }
+
+    private func invalidateServiceNameIfMismatched() {
+        guard let captured = serviceName,
+              case .services(let services) = environment.discoveryState,
+              let match = services.first(where: { $0.name == captured }) else { return }
+        if host != match.host || port != String(match.port) {
+            serviceName = nil
+        }
     }
 
     private func fieldRow(
@@ -140,7 +220,7 @@ struct AddDeviceScreen: View {
                 .textInputAutocapitalization(capitalize)
                 .keyboardType(keyboard)
                 .autocorrectionDisabled(disableAutocorrect)
-                .disabled(phase != .idle)
+                .disabled(isBusy)
         }
         .padding(.horizontal, Theme.Spacing.lg)
         .padding(.vertical, Theme.Spacing.sm + 2)
@@ -154,7 +234,7 @@ struct AddDeviceScreen: View {
 
     private var ctaButton: some View {
         Button(action: { Task { await pair() } }) {
-            Text(phase == .idle ? "Pair" : "Pairing…")
+            Text(isBusy ? "Pairing…" : "Pair")
                 .font(.body.weight(.semibold))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Theme.Spacing.md)
@@ -182,6 +262,15 @@ struct AddDeviceScreen: View {
             .padding(.horizontal, Theme.Spacing.xs)
     }
 
+    private func select(_ service: DiscoveredService) {
+        host = service.host
+        port = String(service.port)
+        serviceName = service.name
+        if name.trimmingCharacters(in: .whitespaces).isEmpty {
+            name = service.name
+        }
+    }
+
     private func pair() async {
         let trimmedHost = host.trimmingCharacters(in: .whitespaces)
         let trimmedName = name.trimmingCharacters(in: .whitespaces)
@@ -197,22 +286,14 @@ struct AddDeviceScreen: View {
             host: trimmedHost,
             port: portNumber,
             label: trimmedName,
-            phase: { servicePhase in
-                switch servicePhase {
-                case .connecting: phase = .connecting
-                case .authenticating: phase = .connecting
-                case .awaitingApproval: phase = .awaitingApproval
-                case .authenticated: phase = .done
-                case .failed: break
-                }
-            }
+            serviceName: serviceName,
+            phase: { phase = $0 }
         )
         switch result {
         case .success:
-            phase = .done
             dismiss()
         case .failure(let reason):
-            phase = .idle
+            phase = nil
             error = describe(reason)
         }
     }

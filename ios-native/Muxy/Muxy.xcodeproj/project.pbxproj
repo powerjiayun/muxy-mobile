@@ -24,7 +24,6 @@
 		A100000000000000000000AF /* MuxyProtocol in Frameworks */ = {isa = PBXBuildFile; productRef = D100000000000000000000A1 /* MuxyProtocol */; };
 		A100000000000000000000B0 /* ScanPairScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000B0 /* ScanPairScreen.swift */; };
 		A100000000000000000000B9 /* MuxyCore in Frameworks */ = {isa = PBXBuildFile; productRef = D100000000000000000000A2 /* MuxyCore */; };
-		A100000000000000000000BA /* ConnectionBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BA /* ConnectionBanner.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,7 +45,6 @@
 		B100000000000000000000AF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B100000000000000000000BB /* Muxy.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Muxy.entitlements; sourceTree = "<group>"; };
 		B100000000000000000000B0 /* ScanPairScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanPairScreen.swift; sourceTree = "<group>"; };
-		B100000000000000000000BA /* ConnectionBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionBanner.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -106,18 +104,9 @@
 		C100000000000000000000A4 /* DesignSystem */ = {
 			isa = PBXGroup;
 			children = (
-				C100000000000000000000DA /* Components */,
 				C100000000000000000000A7 /* Theme */,
 			);
 			path = DesignSystem;
-			sourceTree = "<group>";
-		};
-		C100000000000000000000DA /* Components */ = {
-			isa = PBXGroup;
-			children = (
-				B100000000000000000000BA /* ConnectionBanner.swift */,
-			);
-			path = Components;
 			sourceTree = "<group>";
 		};
 		C100000000000000000000A7 /* Theme */ = {
@@ -303,7 +292,6 @@
 				A100000000000000000000AA /* WorkspaceScreen.swift in Sources */,
 				A100000000000000000000AB /* SettingsScreen.swift in Sources */,
 				A100000000000000000000AC /* PaywallScreen.swift in Sources */,
-				A100000000000000000000BA /* ConnectionBanner.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

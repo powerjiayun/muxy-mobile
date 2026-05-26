@@ -7,13 +7,27 @@ enum AppRoute: Hashable {
     case workspace(deviceID: String, projectID: String)
 }
 
+struct AddDevicePrefill: Hashable {
+    let label: String
+    let host: String
+    let port: Int
+    let serviceName: String?
+}
+
 enum AppSheet: Hashable, Identifiable {
-    case addDevice
+    case addDevice(prefill: AddDevicePrefill?)
     case scanPair
     case settings
     case paywall
 
-    var id: Self { self }
+    var id: String {
+        switch self {
+        case .addDevice: return "addDevice"
+        case .scanPair: return "scanPair"
+        case .settings: return "settings"
+        case .paywall: return "paywall"
+        }
+    }
 }
 
 @Observable
