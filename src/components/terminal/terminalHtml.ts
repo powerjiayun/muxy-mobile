@@ -423,6 +423,18 @@ html, body { margin: 0; padding: 0; height: 100%; width: 100%; background: ${ini
     ro.observe(root);
   }
 
+  var lastReportedAtBottom = true;
+  function reportScrollState() {
+    var atBottom = isScrolledToBottom();
+    if (atBottom === lastReportedAtBottom) return;
+    lastReportedAtBottom = atBottom;
+    post({ type: 'scroll', atBottom: atBottom });
+  }
+
+  try {
+    term.onScroll(function () { reportScrollState(); });
+  } catch (e) {}
+
   var pendingWrites = [];
   var flushScheduled = false;
   function scheduleFlush() {
@@ -445,7 +457,7 @@ html, body { margin: 0; padding: 0; height: 100%; width: 100%; background: ${ini
         }
       }
       pendingWrites = [];
-      term.write(combined);
+      term.write(combined, function () { reportScrollState(); });
     });
   }
 
@@ -499,6 +511,7 @@ html, body { margin: 0; padding: 0; height: 100%; width: 100%; background: ${ini
           }
           if (msg.bytes) term.write(decodeBase64(msg.bytes));
           scrollToBottom();
+          reportScrollState();
           break;
         case 'setTheme':
           term.options.theme = msg.theme;
@@ -511,6 +524,11 @@ html, body { margin: 0; padding: 0; height: 100%; width: 100%; background: ${ini
         case 'clear':
           term.clear();
           term.reset();
+          reportScrollState();
+          break;
+        case 'scrollToBottom':
+          scrollToBottom();
+          reportScrollState();
           break;
         case 'requestDimensions':
           reportDimensions();

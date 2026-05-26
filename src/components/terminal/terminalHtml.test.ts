@@ -60,4 +60,16 @@ describe('buildTerminalHtml', () => {
     expect(html).toContain('Array.isArray(msg.bytes)');
     expect(html).toContain('pendingWrites.push(decodeBase64(msg.bytes[writeIndex]));');
   });
+
+  it('reports scroll state changes and accepts scrollToBottom commands', () => {
+    const html = buildTerminalHtml({
+      theme,
+      fontFamily: 'Menlo',
+      fontSize: 12,
+    });
+
+    expect(html).toContain("post({ type: 'scroll', atBottom: atBottom })");
+    expect(html).toContain('term.onScroll(function () { reportScrollState(); })');
+    expect(html).toContain("case 'scrollToBottom':");
+  });
 });

@@ -17,6 +17,7 @@ export type TerminalWebViewHandle = {
   loadSnapshot: (base64: string, cols?: number, rows?: number) => void;
   setTheme: (theme: TerminalTheme) => void;
   clear: () => void;
+  scrollToBottom: () => void;
   requestDimensions: () => void;
   installFont: (regular: string, bold: string) => void;
   setFontFamily: (fontFamily: string) => void;
@@ -31,6 +32,7 @@ type Props = {
   onData?: (base64: string) => void;
   onError?: (message: string) => void;
   onTap?: () => void;
+  onScrollState?: (atBottom: boolean) => void;
   onNewTerminalShortcut?: () => void;
   onSelectTabShortcut?: (digit: number) => void;
   onRenderer?: (renderer: string, reason?: string) => void;
@@ -44,6 +46,7 @@ export const TerminalWebView = forwardRef<TerminalWebViewHandle, Props>(function
     onData,
     onError,
     onTap,
+    onScrollState,
     onNewTerminalShortcut,
     onSelectTabShortcut,
     onRenderer,
@@ -103,6 +106,7 @@ export const TerminalWebView = forwardRef<TerminalWebViewHandle, Props>(function
         cancelQueuedWrites();
         send({ type: 'clear' });
       },
+      scrollToBottom: () => send({ type: 'scrollToBottom' }),
       requestDimensions: () => send({ type: 'requestDimensions' }),
       installFont: (regular, bold) => send({ type: 'installFont', regular, bold }),
       setFontFamily: (fontFamily) => send({ type: 'setFontFamily', fontFamily }),
@@ -125,6 +129,9 @@ export const TerminalWebView = forwardRef<TerminalWebViewHandle, Props>(function
           return;
         case 'tap':
           onTap?.();
+          return;
+        case 'scroll':
+          onScrollState?.(!!msg.atBottom);
           return;
         case 'newTerminalShortcut':
           onNewTerminalShortcut?.();

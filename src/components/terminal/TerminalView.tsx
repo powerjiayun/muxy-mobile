@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
@@ -66,6 +67,7 @@ export function TerminalView({ paneId, onNewTerminal, onSelectTabShortcut }: Pro
 
   const [dimensions, setDimensions] = useState<TerminalDimensions | null>(null);
   const [ready, setReady] = useState(false);
+  const [atBottom, setAtBottom] = useState(true);
   const [nerdFontLoaded, setNerdFontLoaded] = useState<boolean>(() => getNerdFont() !== null);
   const useNerdFont = useSettingsStore((s) => s.useNerdFont);
   const autoFocusTerminal = useSettingsStore((s) => s.autoFocusTerminal);
@@ -209,6 +211,7 @@ export function TerminalView({ paneId, onNewTerminal, onSelectTabShortcut }: Pro
           }}
           onData={handleData}
           onTap={handleTap}
+          onScrollState={setAtBottom}
           onNewTerminalShortcut={onNewTerminal}
           onSelectTabShortcut={onSelectTabShortcut}
           onRenderer={(renderer, reason) => {
@@ -281,6 +284,23 @@ export function TerminalView({ paneId, onNewTerminal, onSelectTabShortcut }: Pro
             </Pressable>
           </View>
         ) : null}
+
+        {sessionForUs?.kind === 'streaming' && !atBottom ? (
+          <Pressable
+            onPress={() => webRef.current?.scrollToBottom()}
+            accessibilityRole="button"
+            accessibilityLabel="Scroll to live output"
+            style={({ pressed }) => [
+              styles.livePill,
+              {
+                backgroundColor: tokens.accent.primary,
+                opacity: pressed ? 0.85 : 1,
+              },
+            ]}>
+            <Ionicons name="arrow-down" size={14} color={tokens.accent.contrast} />
+            <Text style={[styles.livePillLabel, { color: tokens.accent.contrast }]}>Live</Text>
+          </Pressable>
+        ) : null}
       </View>
 
         {sessionForUs?.kind === 'streaming' ? (
@@ -337,4 +357,16 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
   },
+  livePill: {
+    position: 'absolute',
+    bottom: 12,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  livePillLabel: { fontSize: 13, fontWeight: '600' },
 });
