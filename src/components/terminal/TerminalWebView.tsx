@@ -31,6 +31,7 @@ type Props = {
   onData?: (base64: string) => void;
   onError?: (message: string) => void;
   onTap?: () => void;
+  onSelectionChange?: (text: string) => void;
   onNewTerminalShortcut?: () => void;
   onSelectTabShortcut?: (digit: number) => void;
   onRenderer?: (renderer: string, reason?: string) => void;
@@ -44,6 +45,7 @@ export const TerminalWebView = forwardRef<TerminalWebViewHandle, Props>(function
     onData,
     onError,
     onTap,
+    onSelectionChange,
     onNewTerminalShortcut,
     onSelectTabShortcut,
     onRenderer,
@@ -125,6 +127,9 @@ export const TerminalWebView = forwardRef<TerminalWebViewHandle, Props>(function
           return;
         case 'tap':
           onTap?.();
+          return;
+        case 'selection':
+          onSelectionChange?.(typeof msg.text === 'string' ? msg.text : '');
           return;
         case 'newTerminalShortcut':
           onNewTerminalShortcut?.();

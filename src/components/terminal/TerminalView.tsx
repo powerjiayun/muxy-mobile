@@ -1,3 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
@@ -66,6 +69,7 @@ export function TerminalView({ paneId, onNewTerminal, onSelectTabShortcut }: Pro
 
   const [dimensions, setDimensions] = useState<TerminalDimensions | null>(null);
   const [ready, setReady] = useState(false);
+  const [selectedText, setSelectedText] = useState('');
   const [nerdFontLoaded, setNerdFontLoaded] = useState<boolean>(() => getNerdFont() !== null);
   const useNerdFont = useSettingsStore((s) => s.useNerdFont);
   const autoFocusTerminal = useSettingsStore((s) => s.autoFocusTerminal);
@@ -184,6 +188,17 @@ export function TerminalView({ paneId, onNewTerminal, onSelectTabShortcut }: Pro
     inputRef.current?.focus();
   }, []);
 
+  const handleCopy = useCallback(async () => {
+    if (!selectedText) return;
+    try {
+      await Clipboard.setStringAsync(selectedText);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setSelectedText('');
+    } catch {
+      void 0;
+    }
+  }, [selectedText]);
+
   const inputSelection = useMemo(
     () => ({ start: inputValue.length, end: inputValue.length }),
     [inputValue],
@@ -209,6 +224,7 @@ export function TerminalView({ paneId, onNewTerminal, onSelectTabShortcut }: Pro
           }}
           onData={handleData}
           onTap={handleTap}
+          onSelectionChange={setSelectedText}
           onNewTerminalShortcut={onNewTerminal}
           onSelectTabShortcut={onSelectTabShortcut}
           onRenderer={(renderer, reason) => {
@@ -281,6 +297,23 @@ export function TerminalView({ paneId, onNewTerminal, onSelectTabShortcut }: Pro
             </Pressable>
           </View>
         ) : null}
+
+        {selectedText ? (
+          <Pressable
+            onPress={handleCopy}
+            accessibilityRole="button"
+            accessibilityLabel="Copy selected text"
+            style={({ pressed }) => [
+              styles.copyPill,
+              {
+                backgroundColor: tokens.accent.primary,
+                opacity: pressed ? 0.85 : 1,
+              },
+            ]}>
+            <Ionicons name="copy-outline" size={14} color={tokens.accent.contrast} />
+            <Text style={[styles.copyPillLabel, { color: tokens.accent.contrast }]}>Copy</Text>
+          </Pressable>
+        ) : null}
       </View>
 
         {sessionForUs?.kind === 'streaming' ? (
@@ -337,4 +370,16 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
   },
+  copyPill: {
+    position: 'absolute',
+    bottom: 12,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  copyPillLabel: { fontSize: 13, fontWeight: '600' },
 });

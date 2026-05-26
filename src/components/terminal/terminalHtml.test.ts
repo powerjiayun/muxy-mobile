@@ -60,4 +60,16 @@ describe('buildTerminalHtml', () => {
     expect(html).toContain('Array.isArray(msg.bytes)');
     expect(html).toContain('pendingWrites.push(decodeBase64(msg.bytes[writeIndex]));');
   });
+
+  it('reports selection changes to the native host and suppresses the iOS callout', () => {
+    const html = buildTerminalHtml({
+      theme,
+      fontFamily: 'Menlo',
+      fontSize: 12,
+    });
+
+    expect(html).toContain("post({ type: 'selection', text: text })");
+    expect(html).toContain("document.addEventListener('selectionchange'");
+    expect(html).toContain('-webkit-touch-callout: none');
+  });
 });

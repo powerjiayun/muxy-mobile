@@ -47,7 +47,7 @@ export function buildTerminalHtml(init: TerminalInitOptions): string {
 ${XTERM_CSS}
 html, body { margin: 0; padding: 0; height: 100%; width: 100%; background: ${init.theme.background}; overflow: hidden; -webkit-text-size-adjust: 100%; }
 #root { position: absolute; inset: 0; padding: 8px; box-sizing: border-box; }
-.xterm, .xterm-screen { user-select: text; -webkit-user-select: text; -webkit-touch-callout: default; }
+.xterm, .xterm-screen { user-select: text; -webkit-user-select: text; -webkit-touch-callout: none; }
 .xterm-viewport { background-color: transparent !important; }
 .xterm-screen canvas { pointer-events: none !important; }
 .xterm .xterm-scrollable-element > .scrollbar.vertical { width: 4px !important; }
@@ -273,6 +273,21 @@ html, body { margin: 0; padding: 0; height: 100%; width: 100%; background: ${ini
     var sel = window.getSelection && window.getSelection();
     return !!(sel && sel.toString().length > 0);
   }
+
+  var lastSelectionText = '';
+  var selectionRaf = 0;
+  function reportSelection() {
+    selectionRaf = 0;
+    var sel = window.getSelection && window.getSelection();
+    var text = sel ? sel.toString() : '';
+    if (text === lastSelectionText) return;
+    lastSelectionText = text;
+    post({ type: 'selection', text: text });
+  }
+  document.addEventListener('selectionchange', function () {
+    if (selectionRaf) return;
+    selectionRaf = requestAnimationFrame(reportSelection);
+  });
   function cancelMomentum() {
     if (momentumRaf) cancelAnimationFrame(momentumRaf);
     momentumRaf = 0;
