@@ -1,4 +1,5 @@
 import Foundation
+import MuxyProtocol
 import Observation
 import SwiftUI
 
@@ -34,6 +35,7 @@ enum AppSheet: Hashable, Identifiable {
 final class AppRouter {
     var path: [AppRoute] = []
     var sheet: AppSheet?
+    var pendingScanResult: PairURIPayload?
 
     func push(_ route: AppRoute) {
         path.append(route)

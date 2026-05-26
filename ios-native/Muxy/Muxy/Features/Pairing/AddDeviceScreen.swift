@@ -1,4 +1,5 @@
 import MuxyCore
+import MuxyProtocol
 import SwiftUI
 
 struct AddDeviceScreen: View {
@@ -68,6 +69,11 @@ struct AddDeviceScreen: View {
         .background(Theme.Palette.background.ignoresSafeArea())
         .navigationTitle(prefill == nil ? "Add device" : "Re-pair device")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: router.pendingScanResult) { _, payload in
+            guard let payload else { return }
+            router.pendingScanResult = nil
+            apply(scan: payload)
+        }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
@@ -260,6 +266,18 @@ struct AddDeviceScreen: View {
             .foregroundStyle(.secondary)
             .tracking(0.5)
             .padding(.horizontal, Theme.Spacing.xs)
+    }
+
+    private func apply(scan payload: PairURIPayload) {
+        host = payload.host
+        port = String(payload.port)
+        serviceName = payload.serviceName
+        if let label = payload.label, !label.isEmpty {
+            name = label
+        } else if name.trimmingCharacters(in: .whitespaces).isEmpty {
+            name = payload.serviceName ?? payload.host
+        }
+        Task { await pair() }
     }
 
     private func select(_ service: DiscoveredService) {
