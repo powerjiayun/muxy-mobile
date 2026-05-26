@@ -28,12 +28,16 @@ final class AppEnvironment {
     private(set) var discoveryState: DiscoveryUpdate = .searching
     private(set) var projectsState: ProjectsUpdate = .loading
     private(set) var projectLogos: [String: Data] = [:]
+    private(set) var workspaceState: WorkspaceUpdate = .loading
+    private(set) var activeWorkspaceProjectID: String?
     var lastConnectError: String?
 
     private var stateObservationTask: Task<Void, Never>?
     private var discoveryObservationTask: Task<Void, Never>?
     private var projectsObservationTask: Task<Void, Never>?
     private var projectsService: ProjectsService?
+    private var workspaceObservationTask: Task<Void, Never>?
+    private var workspaceService: WorkspaceService?
     private var pendingLogoRequests: Set<String> = []
     private let logger = Logger(subsystem: "com.muxy.app", category: "AppEnvironment")
 
@@ -101,6 +105,7 @@ final class AppEnvironment {
         case .idle:
             activeDeviceID = nil
             stopProjects()
+            stopWorkspace()
         case .connected:
             lastConnectError = nil
             if let deviceID = activeDeviceID {
@@ -110,9 +115,11 @@ final class AppEnvironment {
         case .connecting, .authenticating, .reconnecting, .suspended:
             lastConnectError = nil
             stopProjects()
+            stopWorkspace()
         case .failed(let reason):
             handleFailure(reason)
             stopProjects()
+            stopWorkspace()
         }
     }
 
@@ -167,6 +174,70 @@ final class AppEnvironment {
         pendingLogoRequests.remove(projectID)
         if let data {
             projectLogos[projectID] = data
+        }
+    }
+
+    func startWorkspace(projectID: String) {
+        if activeWorkspaceProjectID == projectID, workspaceService != nil { return }
+        stopWorkspace()
+        activeWorkspaceProjectID = projectID
+        let manager = connectionManager
+        workspaceObservationTask = Task { [weak self] in
+            guard let client = await manager.activeClientHandle() else { return }
+            let service = WorkspaceService(client: client, projectID: projectID)
+            self?.assign(workspaceService: service)
+            let stream = await service.stream()
+            for await update in stream {
+                self?.workspaceState = update
+            }
+        }
+    }
+
+    func stopWorkspace() {
+        workspaceObservationTask?.cancel()
+        workspaceObservationTask = nil
+        let service = workspaceService
+        workspaceService = nil
+        workspaceState = .loading
+        activeWorkspaceProjectID = nil
+        if let service {
+            Task { await service.stop() }
+        }
+    }
+
+    private func assign(workspaceService: WorkspaceService) {
+        self.workspaceService = workspaceService
+    }
+
+    func refreshWorkspace() async {
+        guard let service = workspaceService else { return }
+        await service.refresh()
+    }
+
+    func createTerminalTab(areaID: String?) async {
+        guard let service = workspaceService else { return }
+        do {
+            try await service.createTerminalTab(areaID: areaID)
+        } catch {
+            logger.error("createTerminalTab failed: \(error)")
+        }
+    }
+
+    func selectTab(areaID: String, tabID: String) async {
+        guard let service = workspaceService else { return }
+        do {
+            try await service.selectTab(areaID: areaID, tabID: tabID)
+        } catch {
+            logger.error("selectTab failed: \(error)")
+        }
+    }
+
+    func closeTab(areaID: String, tabID: String) async {
+        guard let service = workspaceService else { return }
+        do {
+            try await service.closeTab(areaID: areaID, tabID: tabID)
+        } catch {
+            logger.error("closeTab failed: \(error)")
         }
     }
 

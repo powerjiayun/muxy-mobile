@@ -115,6 +115,16 @@ struct ModelTests {
         #expect(decoded == workspace)
     }
 
+    @Test("Tab decodes without paneID for non-terminal kinds")
+    func tabDecodesWithoutPaneID() throws {
+        let json = """
+        { "id": "t1", "kind": "vcs", "title": "Git", "isPinned": false }
+        """.data(using: .utf8)!
+        let tab = try JSONDecoder().decode(Tab.self, from: json)
+        #expect(tab.kind == .vcs)
+        #expect(tab.paneID == nil)
+    }
+
     @Test("TerminalOutput round-trips")
     func terminalOutputRoundTrip() throws {
         let output = TerminalOutput(paneID: "pane-1", bytes: "QUJD")

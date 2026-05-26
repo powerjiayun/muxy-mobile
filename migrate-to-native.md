@@ -353,6 +353,10 @@ Goal: replace WebView and xterm.js with native SwiftTerm.
 - `EventName.terminalOutput`, `.terminalSnapshot`, `.paneOwnershipChanged` already in `MethodsAndEvents.swift`.
 - `MuxyWebSocketClient.events()` is multicast. Phase 7's `WorkspaceService` already consumes the events stream for `workspaceChanged` — you'll add a new consumer for terminal events.
 - `Tab.paneID` is the join key between a tab in the workspace tree and its terminal pane.
+- Phase 7 added `WorkspaceService` in MuxyCore (per-project actor, `stream() -> AsyncStream<WorkspaceUpdate>`, methods: `createTerminalTab`, `selectTab`, `closeTab`). It is started in `AppEnvironment.startWorkspace(projectID:)` when `WorkspaceScreen.task` fires and stopped in `onDisappear`. Same lifecycle pattern works for `PaneSessionController`.
+- Workspace tree helpers live on `SplitNode`/`Workspace` extensions in `MuxyProtocol/WorkspaceTree.swift` — `findArea(id:)`, `flattenAreas()`, `workspace.focusedArea`. Use these to find the active tab's `paneID`.
+- `WorkspaceScreen` renders `TabContentView` for the active tab. For a terminal tab it currently shows a "Phase 8" placeholder — replace `TabContentView`'s terminal branch with the SwiftTerm wrapper. The tab strip and create/select/close plumbing are already done; don't rebuild them.
+- **Note on `Tab` naming collision**: `MuxyProtocol.Tab` clashes with `SwiftUI.Tab`. In any SwiftUI view that imports both, qualify as `MuxyProtocol.Tab`. WorkspaceScreen.swift already does this.
 
 ### Notes for the implementer
 

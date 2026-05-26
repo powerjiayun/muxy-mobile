@@ -53,7 +53,15 @@ public struct Tab: Codable, Sendable, Equatable, Identifiable {
     public let kind: TabKind
     public let title: String
     public let isPinned: Bool
-    public let paneID: String
+    public let paneID: String?
+
+    public init(id: String, kind: TabKind, title: String, isPinned: Bool, paneID: String?) {
+        self.id = id
+        self.kind = kind
+        self.title = title
+        self.isPinned = isPinned
+        self.paneID = paneID
+    }
 }
 
 public struct TabArea: Codable, Sendable, Equatable, Identifiable {
