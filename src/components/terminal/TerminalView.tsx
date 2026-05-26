@@ -18,7 +18,8 @@ import {
 import { useTokens } from '@/theme';
 
 import { buildTerminalTheme } from './buildTerminalTheme';
-import { KeyBar, transformWithModifiers } from './KeyBar';
+import { KeyBar } from './KeyBar';
+import { transformWithModifiers } from './modifierState';
 import {
   TerminalWebView,
   type TerminalDimensions,

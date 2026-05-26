@@ -9,8 +9,6 @@ import { useTokens } from '@/theme';
 import { Joystick, type JoystickDirection } from './Joystick';
 import { type Modifier, useModifierStore } from './modifierState';
 
-export { transformWithModifiers, type Modifier } from './modifierState';
-
 const MODIFIER_OPTIONS: { id: Modifier; label: string; symbol: string }[] = [
   { id: 'ctrl', label: 'ctrl', symbol: '⌃' },
   { id: 'shift', label: 'shift', symbol: '⇧' },
@@ -85,7 +83,7 @@ export function KeyBar({
             slot={slot}
             active={active}
             locked={locked}
-            onArm={(m, lock) => arm(m, lock)}
+            onArm={arm}
             onPickFromMenu={(m) => {
               setSlot(m);
               arm(m);
