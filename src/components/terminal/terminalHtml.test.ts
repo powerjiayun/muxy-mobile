@@ -68,7 +68,7 @@ describe('buildTerminalHtml', () => {
       fontSize: 12,
     });
 
-    expect(html).toContain("post({ type: 'scroll', atBottom: atBottom })");
+    expect(html).toContain("post({ type: 'scroll', atBottom: atBottom, altBuffer: altBuffer })");
     expect(html).toContain('term.onScroll(function () { reportScrollState(); })');
     expect(html).toContain("case 'scrollToBottom':");
   });

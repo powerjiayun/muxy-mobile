@@ -424,11 +424,14 @@ html, body { margin: 0; padding: 0; height: 100%; width: 100%; background: ${ini
   }
 
   var lastReportedAtBottom = true;
+  var lastReportedAltBuffer = false;
   function reportScrollState() {
     var atBottom = isScrolledToBottom();
-    if (atBottom === lastReportedAtBottom) return;
+    var altBuffer = isAltBuffer();
+    if (atBottom === lastReportedAtBottom && altBuffer === lastReportedAltBuffer) return;
     lastReportedAtBottom = atBottom;
-    post({ type: 'scroll', atBottom: atBottom });
+    lastReportedAltBuffer = altBuffer;
+    post({ type: 'scroll', atBottom: atBottom, altBuffer: altBuffer });
   }
 
   try {

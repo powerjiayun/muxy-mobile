@@ -67,7 +67,7 @@ export function TerminalView({ paneId, onNewTerminal, onSelectTabShortcut }: Pro
 
   const [dimensions, setDimensions] = useState<TerminalDimensions | null>(null);
   const [ready, setReady] = useState(false);
-  const [atBottom, setAtBottom] = useState(true);
+  const [scrollState, setScrollState] = useState({ atBottom: true, altBuffer: false });
   const [nerdFontLoaded, setNerdFontLoaded] = useState<boolean>(() => getNerdFont() !== null);
   const useNerdFont = useSettingsStore((s) => s.useNerdFont);
   const autoFocusTerminal = useSettingsStore((s) => s.autoFocusTerminal);
@@ -211,7 +211,7 @@ export function TerminalView({ paneId, onNewTerminal, onSelectTabShortcut }: Pro
           }}
           onData={handleData}
           onTap={handleTap}
-          onScrollState={setAtBottom}
+          onScrollState={setScrollState}
           onNewTerminalShortcut={onNewTerminal}
           onSelectTabShortcut={onSelectTabShortcut}
           onRenderer={(renderer, reason) => {
@@ -285,7 +285,7 @@ export function TerminalView({ paneId, onNewTerminal, onSelectTabShortcut }: Pro
           </View>
         ) : null}
 
-        {sessionForUs?.kind === 'streaming' && !atBottom ? (
+        {sessionForUs?.kind === 'streaming' && !scrollState.altBuffer && !scrollState.atBottom ? (
           <Pressable
             onPress={() => webRef.current?.scrollToBottom()}
             accessibilityRole="button"
@@ -367,6 +367,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   livePillLabel: { fontSize: 13, fontWeight: '600' },
 });
