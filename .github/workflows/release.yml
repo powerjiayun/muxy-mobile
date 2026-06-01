@@ -47,10 +47,44 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Collect release assets
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          mkdir -p dist
+
+          while IFS= read -r -d '' asset; do
+            case "$asset" in
+              *.aab) name="Muxy-${VERSION}-android.aab" ;;
+              *.ipa) name="Muxy-${VERSION}-ios.ipa" ;;
+              *.tipa) name="Muxy-${VERSION}-ios.tipa" ;;
+              *) continue ;;
+            esac
+
+            cp "$asset" "dist/$name"
+          done < <(find release-artifacts -type f \( -name "*.aab" -o -name "*.ipa" -o -name "*.tipa" \) -print0)
+
+          shopt -s nullglob
+          assets=(dist/*)
+          if (( ${#assets[@]} == 0 )); then
+            echo "Error: no release assets found in downloaded artifacts"
+            find release-artifacts -maxdepth 4 -type f -print
+            exit 1
+          fi
+
+          printf "Release assets:\n"
+          printf "- %s\n" "${assets[@]}"
 
       - name: Create GitHub Release
         env:
@@ -75,8 +109,20 @@ jobs:
             echo "- No changes since ${PREV_TAG:-initial release}" > notes.md
           fi
 
-          gh release create "v$VERSION" \
-            --repo "${{ github.repository }}" \
-            --title "v$VERSION" \
-            --notes-file notes.md \
-            --target "${{ github.sha }}"
+          shopt -s nullglob
+          ASSETS=(dist/*)
+          TAG="v$VERSION"
+
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              --repo "${{ github.repository }}" \
+              "${ASSETS[@]}" \
+              --clobber
+          else
+            gh release create "$TAG" \
+              --repo "${{ github.repository }}" \
+              --title "$TAG" \
+              --notes-file notes.md \
+              --target "${{ github.sha }}" \
+              "${ASSETS[@]}"
+          fi
